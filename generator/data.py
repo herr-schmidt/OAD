@@ -64,7 +64,21 @@ procedure_time_mapping = {"VISITASTRUTTURATO": 20,
                           "CLISTERE": 10,
                           "TRAININGCAREGIVER": 15,
                           "SUPPORTOPSICOLOGICO": 20,
+                          "PRESAINCARICO": 90,
+                          "DIMISSIONE": 35
                           }
 
-FIRST_EXAMINATION = ("PRESAINCARICO", 90)
-DISMISSION = ("DIMISSIONE", 35)
+# average explicit occurrences per day
+procedure_avg_occurrences_mapping = {"MIDLINE": 3,
+                                     "ECOGRAFIA": 1,
+                                     "ECG": 2,
+                                     "PRELIEVO": 6,
+                                     "TRASF-1": 1,
+                                     "TRASF-2": 1,
+                                     "MEDICAZIONEDECUBITI": 3,
+                                     "CLISTERE": 2, # invented, since no explicit info was available
+                                     "TRAININGCAREGIVER": 3,
+                                     "SUPPORTOPSICOLOGICO": 2,
+                                     # "PRESAINCARICO": 1,
+                                     # "DIMISSIONE": 2,
+                                     }

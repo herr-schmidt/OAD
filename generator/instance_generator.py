@@ -1,6 +1,5 @@
 from numpy import random
-from generator.data import addresses, DISMISSION, FIRST_EXAMINATION, procedure_time_mapping
-from generator.model import Patient
+from generator.data import addresses, procedure_time_mapping, procedure_avg_occurrences_mapping
 
 
 class OADInstanceGenerator():
@@ -9,57 +8,84 @@ class OADInstanceGenerator():
         self.seed = seed
         pass
 
-    def generate_procedures_list(self, treatments_number, first_day=False, last_day=False):
-        procedures_dict = {}
+    def generate_procedures_frequencies(self, patients_number):
+        # (1 - 1 / patients_number): probability of a patients being visited
+        # / 3: we assume uniform for different types of visits
+        visit_mean = (1 - 1 / patients_number) * patients_number
 
-        # handle first and last day, which involve a mandatory kind of procedure each
-        first_procedure_index = 0
-        if first_day:
-            procedures_dict[FIRST_EXAMINATION[0]] = FIRST_EXAMINATION[1]
-            treatments_number -= 1
-            first_procedure_index = 1
-        if last_day:
-            procedures_dict[DISMISSION[0]] = DISMISSION[1]
-            treatments_number -= 1
-            first_procedure_index = 1
+        mean_values = {"VISITASTRUTTURATO": visit_mean / 3,
+                       "VISITAMEDICO": visit_mean / 3,
+                       "VISITAINFERMIERE": visit_mean / 3,
+                       "INFUSIONESINGOLA": 0.75 * 2 / 3 * patients_number,
+                       "INFUSIONEMULTIPLA": 0.75 / 3 * patients_number,
+                       "MEDICAZIONEMIDLINE": 0.4 * patients_number
+                      } | procedure_avg_occurrences_mapping
 
-        for treatment_id in range(first_procedure_index, treatments_number):
-            # pick a random procedure according to a uniform distribution;
-            # we assume each procedure can be picked at most once per day, per patient (replace=False)
-            procedure = random.choice(list(procedure_time_mapping.keys()),
-                                      replace=False)
-            procedures_dict[procedure] = procedure_time_mapping[procedure]
+        mean_values_sum = sum(mean_values.values())
 
-        return procedures_dict
+        return {procedure: f / mean_values_sum for (procedure, f) in mean_values.items()}
 
-    def generate_instance(self, patients=100, treatment_days_range=(5, 30), treatments_number_range=(2, 5)):
-        instance = []
+    def generate_procedures_set(self, treatments_number_range, patients_number):
+        procedures_number = random.randint(low=treatments_number_range[0],
+                                           high=treatments_number_range[1])
 
-        for patient_id in range(1, patients + 1):
-            # pick a random address according to a uniform distribution
-            address = random.choice(addresses)
-            treatment_days = random.randint(low=treatment_days_range[0],
-                                            high=treatment_days_range[1] + 1)
+        procedures_frequencies = self.generate_procedures_frequencies(patients_number)
+        return random.choice(list(procedures_frequencies.keys()),
+                             size=procedures_number,
+                             replace=False, 
+                             p=list(procedures_frequencies.values()))
 
-            treatments_by_day = {}
-            for day in range(treatment_days):
-                first_day = False
-                last_day = False
-                if day == 0:
-                    first_day = True
-                if day == treatment_days - 1:
-                    last_day = True
+    # TODO
+    def initialize_address_procedures_map(self, addresses, treatments_number_range, patients_per_day_range):
+        # select a random number of patients 
+        address_procedures_map = {}
+        for address in addresses:
+            patients = random.randint(low=patients_per_day_range[0], high=patients_per_day_range[1])
+            procedures = self.generate_procedures_set(treatments_number_range, patients)
+            address_procedures_map[address] = {procedure: procedure_time_mapping[procedure] for procedure in procedures}
 
-                treatments_number = random.randint(low=treatments_number_range[0],
-                                                   high=treatments_number_range[1])
+        return address_procedures_map
 
-                treatments_by_day[day] = self.generate_procedures_list(treatments_number,
-                                                                       first_day=first_day,
-                                                                       last_day=last_day)
 
-            patient = Patient(id=patient_id,
-                              address=address,
-                              treatments_by_day=treatments_by_day)
-            instance.append(patient)
+    def initialize_address_state_map(self, addresses, treatment_days_range):
+        address_state_map = {}
+        # -1: patient ready for take in charge
+        # 0: patient ready for dismission
+        # any other value: patient can be assigned a set of procedures when chosen
+        remaining_days = [d for d in range(-1, treatment_days_range[1] - treatment_days_range[0])]
+        for address in addresses:
+            address_state_map[address] = random.choice(remaining_days)
+
+        return address_state_map
+
+    def generate_instance(self, timespan=30, treatments_number_range=(2, 5), treatment_days_range=(5, 30), patients_per_day_range=(18, 25)): 
+
+        instance = {address: {day: {} for day in range(timespan)} for address in addresses}
+        address_state_map = self.initialize_address_state_map(addresses, treatment_days_range)
+        address_procedures_map = self.initialize_address_procedures_map(addresses, treatments_number_range, patients_per_day_range)
+
+        for day in range(timespan):
+            chosen_addresses_number = random.randint(low=patients_per_day_range[0],
+                                                     high=patients_per_day_range[1])
+            chosen_addresses = random.choice(addresses,
+                                             replace=False, 
+                                             size=chosen_addresses_number)
+
+            for address in chosen_addresses:
+                # patient ready for being taken charge of
+                if address_state_map[address] == -1:
+                    instance[address][day] = {"PRESAINCARICO": 90}
+                    address_state_map[address] = random.randint(low=treatment_days_range[0],
+                                                                high=treatment_days_range[1])
+
+                    procedures = self.generate_procedures_set(treatments_number_range, patients_number=chosen_addresses_number)
+                    address_procedures_map[address] = {procedure: procedure_time_mapping[procedure] for procedure in procedures}
+                # zero days left: patient dismission
+                elif address_state_map[address] == 0:
+                    instance[address][day] = {"DIMISSIONE": 35}
+                    address_state_map[address] = -1
+                else:
+                    instance[address][day] = address_procedures_map[address]
+                    address_state_map[address] = address_state_map[address] - 1
 
         return instance
