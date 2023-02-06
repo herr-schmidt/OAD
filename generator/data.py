@@ -76,9 +76,15 @@ procedure_avg_occurrences_mapping = {"MIDLINE": 3,
                                      "TRASF-1": 1,
                                      "TRASF-2": 1,
                                      "MEDICAZIONEDECUBITI": 3,
-                                     "CLISTERE": 2, # invented, since no explicit info was available
+                                     "CLISTERE": 2,  # invented, since no explicit info was available
                                      "TRAININGCAREGIVER": 3,
                                      "SUPPORTOPSICOLOGICO": 2,
                                      # "PRESAINCARICO": 1,
                                      # "DIMISSIONE": 2,
+                                     "VISITASTRUTTURATO": 8,
+                                     "VISITAMEDICO": 8,
+                                     "VISITAINFERMIERE": 8,
+                                     "INFUSIONESINGOLA": 12,
+                                     "INFUSIONEMULTIPLA": 6,
+                                     "MEDICAZIONEMIDLINE": 10
                                      }

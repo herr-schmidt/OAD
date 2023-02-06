@@ -5,11 +5,12 @@ from plotly import graph_objects as go
 
 if __name__ == "__main__":
     generator = OADInstanceGenerator(seed=58492)
-    timespan = 100
+    timespan = 200
     instance = generator.generate_instance(timespan=timespan,
                                            treatments_number_range=(2, 5),
-                                           treatment_days_range=(5, 20),
-                                           patients_per_day_range=(18, 25))
+                                           treatment_days_range=(5, 30),
+                                           pattern_mask_size=5,
+                                           take_in_charge_probability=1/18)
 
     # pprint.pp(instance, indent=4)
 
