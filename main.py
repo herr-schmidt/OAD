@@ -5,7 +5,7 @@ from plotly import graph_objects as go
 
 if __name__ == "__main__":
     generator = OADInstanceGenerator(seed=58492)
-    timespan = 200
+    timespan = 100
     instance = generator.generate_instance(timespan=timespan,
                                            treatments_number_range=(2, 5),
                                            treatment_days_range=(5, 30),

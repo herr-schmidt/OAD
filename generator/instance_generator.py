@@ -37,7 +37,11 @@ class OADInstanceGenerator():
                              p=list(self.procedures_frequencies.values()))
     
     def generate_week_mask(self, mask_size=5):
-        return random.binomial(n=1, p=0.5, size=mask_size)
+        mask = random.binomial(n=1, p=0.5, size=mask_size)
+        # empty masks are not allowed: we need at least one care day per mask
+        while sum(mask) == 0:
+             mask = random.binomial(n=1, p=0.5, size=mask_size)
+        return mask
 
     def generate_instance(self, timespan=30, treatments_number_range=(2, 5), treatment_days_range=(5, 30), pattern_mask_size=5, take_in_charge_probability=1 / 25):
         instance = {address: {day: {} for day in range(timespan)} for address in addresses}
