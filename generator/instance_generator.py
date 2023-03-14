@@ -35,15 +35,8 @@ class OADInstanceGenerator():
                              size=procedures_number,
                              replace=False,
                              p=list(self.procedures_frequencies.values()))
-    
-    def generate_week_mask(self, mask_size=5):
-        mask = random.binomial(n=1, p=0.5, size=mask_size)
-        # empty masks are not allowed: we need at least one care day per mask
-        while sum(mask) == 0:
-             mask = random.binomial(n=1, p=0.5, size=mask_size)
-        return mask
 
-    def generate_instance(self, timespan=30, treatments_number_range=(2, 5), treatment_days_range=(5, 30), pattern_mask_size=5, take_in_charge_probability=1 / 25):
+    def generate_instance(self, timespan=30, treatment_span_range=(5, 30), take_in_charge_probability=1 / 25):
         instance = {address: {day: {} for day in range(timespan)} for address in addresses}
 
         for address in instance.keys():
@@ -53,26 +46,58 @@ class OADInstanceGenerator():
 
                 if take_in_charge:
                     instance[address][day] = {"PRESAINCARICO": 90}
-                    day += 1
 
-                    procedures = {procedure: procedure_time_mapping[procedure] for procedure in self.generate_procedures_set(treatments_number_range)}
-                    treatment_days = random.randint(low=treatment_days_range[0],
-                                                    high=treatment_days_range[1])
-                    
-                    mask = self.generate_week_mask(mask_size=pattern_mask_size)
-                    repeated_masks = 0
-                    for d in range(day, timespan):
-                        if treatment_days == 0:
-                            instance[address][d] = {"DIMISSIONE": 35}
-                            break
-                        mask_index = d - (day + pattern_mask_size * repeated_masks)
-                        if mask[mask_index] == 1:
-                            instance[address][d] = procedures
-                            treatment_days -= 1
-                        if mask_index == pattern_mask_size - 1:
-                            repeated_masks += 1
-                    day = d + 1
+                    treatment_span = random.randint(low=treatment_span_range[0],
+                                                    high=treatment_span_range[1])
+
+                    dismission_day = day + treatment_span + 1
+                    if dismission_day < timespan:
+                        instance[address][dismission_day] = {"DIMISSIONE": 35}
+
+                    day = dismission_day + 1
+
                 else:
                     day += 1
 
         return instance
+
+    def generate_input(self, instance, first_day, last_day, treatments_number_range=(2, 5)):
+        take_in_charge = {}
+        dismission = {}
+
+        patient = 0
+        for address in instance.keys():
+            previous_tic_found = False
+            for day in range(first_day, last_day + 1):
+                if "PRESAINCARICO" in instance[address][day]:
+                    previous_tic_found = True
+                    patient += 1
+                    take_in_charge[patient] = day
+                if "DIMISSIONE" in instance[address][day]:
+                    if not previous_tic_found:
+                        patient += 1
+                    else:
+                        previous_tic_found = False
+                    dismission[patient] = day
+
+        for p in range(1, patient + 1):
+            if not p in take_in_charge:
+                take_in_charge[p] = -1
+            if not p in dismission:
+                dismission[p] = -1
+
+        treatments_per_week = {p: random.randint(low=1, high=6) for p in range(1, patient + 1)}
+
+        procedures = {}
+        daily_treatments_duration = {}
+        for p in range(1, patient + 1):
+            patient_procedures = {procedure: procedure_time_mapping[procedure] for procedure in self.generate_procedures_set(treatments_number_range)}
+            procedures[p] = patient_procedures
+            daily_treatments_duration[p] = sum(procedure_time for procedure_time in patient_procedures.values())
+
+        return {"take_in_charge": take_in_charge,
+                "dismission": dismission,
+                "treatments_per_week": treatments_per_week,
+                "procedures": procedures,
+                "daily_treatments_duration": daily_treatments_duration
+        }

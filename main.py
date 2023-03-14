@@ -7,9 +7,9 @@ if __name__ == "__main__":
     generator = OADInstanceGenerator(seed=58492)
     timespan = 100
     instance = generator.generate_instance(timespan=timespan,
-                                           treatments_number_range=(2, 5),
-                                           treatment_days_range=(5, 30),
-                                           pattern_mask_size=5,
+                                           # treatments_number_range=(2, 5),
+                                           treatment_span_range=(5, 30),
+                                           # pattern_mask_size=5,
                                            take_in_charge_probability=1/18)
 
     # pprint.pp(instance, indent=4)
@@ -58,3 +58,6 @@ if __name__ == "__main__":
     ))
 
     fig.show()
+
+    solver_input_dict = generator.generate_input(instance, first_day=10, last_day=20)
+    pprint.pp(solver_input_dict)
