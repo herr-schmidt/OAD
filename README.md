@@ -14,7 +14,7 @@ Methods:
 
 - *`generate_events_calendar(self, timespan, treatment_span_range, take_in_charge_probability)`*
 
-Args
+Args:
    - timespan (int, optional): Length of the calendar horizon. Defaults to `30`.
    - treatment_span_range (tuple, optional): Extremes of the interval from which the distance take_in_charge--dismission is sampled. Defaults to `(5, 30)`.
    - take_in_charge_probability (float, optional): Probability of having a take-in-charge event on any given day. Defaults to `1/25`.
@@ -25,7 +25,7 @@ Return type: `dict[str, dict[int, dict[int, int]]]`.
    
 - *`generate_input(self, calendar, first_day, last_day, treatments_number_range)`*
 
-Args
+Args:
    - calendar (dict): Event calendar with take-in-charge and dismission events.
    - first_day (int): First day from which input is generated from the event calendar.
    - last_day (int): Day following the last from which input is generated from the event calendar.
