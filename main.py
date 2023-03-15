@@ -2,28 +2,24 @@ from generator.instance_generator import OADInstanceGenerator
 import pprint
 import plotly.express as px
 from plotly import graph_objects as go
+from generator.data import Procedures
 
 if __name__ == "__main__":
     generator = OADInstanceGenerator(seed=58492)
     timespan = 100
-    instance = generator.generate_instance(timespan=timespan,
-                                           # treatments_number_range=(2, 5),
-                                           treatment_span_range=(5, 30),
-                                           # pattern_mask_size=5,
-                                           take_in_charge_probability=1/18)
-
-    # pprint.pp(instance, indent=4)
+    event_calendar = generator.generate_events_calendar(timespan=timespan,
+                                                  treatment_span_range=(5, 30))
 
     # visual intuition
-    heatmap_matrix = [[] for _ in instance.keys()]
+    heatmap_matrix = [[] for _ in event_calendar.keys()]
     i = 0
-    for address in instance.keys():
-        for day in instance[address].keys():
-            if instance[address][day] == {}:
+    for address in event_calendar.keys():
+        for day in event_calendar[address].keys():
+            if event_calendar[address][day] == {}:
                 heatmap_matrix[i].append(3)
-            elif "DIMISSIONE" in instance[address][day]:
+            elif Procedures.DIMISSIONE.value in event_calendar[address][day]:
                 heatmap_matrix[i].append(0)
-            elif "PRESAINCARICO" in instance[address][day]:
+            elif Procedures.PRESAINCARICO.value in event_calendar[address][day]:
                 heatmap_matrix[i].append(1)
             else:
                 heatmap_matrix[i].append(2)
@@ -33,7 +29,7 @@ if __name__ == "__main__":
     take_in_charge = "#C0369D"
     treatment = "#FA7876"
     empty_slot = "#EDD9A3"
-    
+
     colors = [[0, dismission],
               [0.25, dismission],
               [0.25, take_in_charge],
@@ -59,5 +55,5 @@ if __name__ == "__main__":
 
     fig.show()
 
-    solver_input_dict = generator.generate_input(instance, first_day=10, last_day=20)
+    solver_input_dict = generator.generate_input(event_calendar, first_day=0, last_day=10)
     pprint.pp(solver_input_dict)
