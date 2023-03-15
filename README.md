@@ -2,7 +2,7 @@
 OAD project. For now it contains the instance generator.
 
 ## Instance generator
-The instance generator allows the generation of an event calendar, i.e. a calendar of a given timespan containing information about take-in-charge and dismission events. On the rows we represent the addresses, whereas columns represent days in the chosen timespan. The generator works "by rows".
+The instance generator allows the generation of an event calendar, i.e. a calendar of a given timespan containing information about take-in-charge and dismission events. On the rows we represent the addresses, whereas columns represent days in the chosen timespan. The event calendar generator works "by rows". Starting from the generated calendar, it is possible to compute an input for our model, possibly from a sub-calendar of the original event calendar.
 
 ### Class `OadInstanceGenerator`
 
