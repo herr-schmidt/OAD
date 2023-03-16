@@ -55,5 +55,5 @@ if __name__ == "__main__":
 
     fig.show()
 
-    solver_input_dict = generator.generate_input(event_calendar, first_day=0, last_day=10)
+    solver_input_dict = generator.generate_input(event_calendar, first_day=10, last_day=20)
     pprint.pp(solver_input_dict)
