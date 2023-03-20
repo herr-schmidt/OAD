@@ -1243,22 +1243,42 @@ distance_matrix = {frozenset(["Corso Bramante 39", "Corso Sebastopoli 308"]): 3.
                    frozenset(["Strada consortile del Salino 20", "Via Paolo Braccini 1"]): 9.093
                    }
 
-skills_matrix = {Procedures.VISITASTRUTTURATO.value: {1: 1, 2: 1, 3: 1, 4: 1, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0},
-                 Procedures.PRESAINCARICO.value: {1: 1, 2: 1, 3: 1, 4: 1, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0},
-                 Procedures.VISITAMEDICO.value: {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1, 8: 0, 9: 0},
-                 Procedures.DIMISSIONE.value: {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1, 8: 0, 9: 0},
-                 Procedures.VISITAINFERMIERE.value: {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1, 8: 0, 9: 1},
-                 Procedures.MIDLINE.value: {1: 1, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 1, 9: 0},
-                 Procedures.ECOGRAFIA.value: {1: 1, 2: 1, 3: 1, 4: 0, 5: 1, 6: 0, 7: 0, 8: 0, 9: 0},
-                 Procedures.ECG.value: {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1, 8: 0, 9: 1},
-                 Procedures.PRELIEVO.value: {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1, 8: 0, 9: 1},
-                 Procedures.INFUSIONESINGOLA.value: {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1, 8: 0, 9: 1},
-                 Procedures.INFUSIONEMULTIPLA.value: {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1, 8: 0, 9: 1},
-                 Procedures.TRASF_1.value: {1: 1, 2: 1, 3: 1, 4: 1, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0},
-                 Procedures.TRASF_2.value: {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1, 8: 0, 9: 0},
-                 Procedures.MEDICAZIONEMIDLINE.value: {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1, 8: 0, 9: 1},
-                 Procedures.MEDICAZIONEDECUBITI.value: {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1, 8: 0, 9: 1},
-                 Procedures.CLISTERE.value: {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1, 8: 0, 9: 1},
-                 Procedures.TRAININGCAREGIVER.value: {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1, 8: 0, 9: 1},
-                 Procedures.SUPPORTOPSICOLOGICO.value: {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1, 8: 0, 9: 1}
+skills_matrix = {Procedures.VISITASTRUTTURATO.value: {1: 1, 2: 1, 3: 1, 4: 1, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0},
+                 Procedures.PRESAINCARICO.value: {1: 1, 2: 1, 3: 1, 4: 1, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0},
+                 Procedures.VISITAMEDICO.value: {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1, 8: 0, 9: 0, 10: 0},
+                 Procedures.DIMISSIONE.value: {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1, 8: 0, 9: 0, 10: 0},
+                 Procedures.VISITAINFERMIERE.value: {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1, 8: 0, 9: 1, 10: 1},
+                 Procedures.MIDLINE.value: {1: 1, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 1, 9: 0, 10: 0},
+                 Procedures.ECOGRAFIA.value: {1: 1, 2: 1, 3: 1, 4: 0, 5: 1, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0},
+                 Procedures.ECG.value: {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1, 8: 0, 9: 1, 10: 1},
+                 Procedures.PRELIEVO.value: {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1, 8: 0, 9: 1, 10: 1},
+                 Procedures.INFUSIONESINGOLA.value: {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1, 8: 0, 9: 1, 10: 1},
+                 Procedures.INFUSIONEMULTIPLA.value: {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1, 8: 0, 9: 1, 10: 1},
+                 Procedures.TRASF_1.value: {1: 1, 2: 1, 3: 1, 4: 1, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0},
+                 Procedures.TRASF_2.value: {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1, 8: 0, 9: 0, 10: 0},
+                 Procedures.MEDICAZIONEMIDLINE.value: {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1, 8: 0, 9: 1, 10: 1},
+                 Procedures.MEDICAZIONEDECUBITI.value: {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1, 8: 0, 9: 1, 10: 1},
+                 Procedures.CLISTERE.value: {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1, 8: 0, 9: 1, 10: 1},
+                 Procedures.TRAININGCAREGIVER.value: {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1, 8: 0, 9: 1, 10: 1},
+                 Procedures.SUPPORTOPSICOLOGICO.value: {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1, 8: 0, 9: 1, 10: 1}
                  }
+
+teams = {1: frozenset([1]),
+         2: frozenset([2, 8]),
+         3: frozenset([3]),
+         4: frozenset([4, 5]),
+         5: frozenset([6]),
+         6: frozenset([7]),
+         7: frozenset([9]),
+         8: frozenset([10])
+         }
+
+teams_skill = {1: 1,
+               2: 2,
+               3: 3,
+               4: 3,
+               5: 4,
+               6: 4,
+               7: 5,
+               8: 5
+               }

@@ -1,5 +1,7 @@
 from numpy import random
-from generator.data import addresses, procedure_time_mapping, procedure_avg_occurrences_mapping, Procedures, distance_matrix, skills_matrix
+from generator.data import addresses, procedure_time_mapping, procedure_avg_occurrences_mapping, Procedures, distance_matrix, skills_matrix, teams, teams_skill
+import pandas as pd
+import os
 
 
 class OADInstanceGenerator():
@@ -154,3 +156,66 @@ class OADInstanceGenerator():
             average_distances[p] = average_distance
 
         return average_distances
+
+    def export_to_csv(self, input):
+        patients_ids = [id for id in range(1, input["patients"] + 1)]
+        service_times = [service_time for service_time in input["daily_treatments_duration"].values()]
+        travelling_times = [round(travelling_time, 3) for travelling_time in input["average_distances"].values()]
+
+        patients_data_dict = {"ID": patients_ids}
+        
+        patient_skills = self.compute_patients_skills(input["procedures"])
+        treatments_per_week = input["treatments_per_week"]
+        
+        
+        for skill in range(1, max(teams_skill.values()) + 1):
+            skill_list = [0 for _ in patients_ids]
+            for patient in patients_ids:
+                if patient_skills[patient] == skill:
+                    skill_list[patient - 1] = treatments_per_week[patient]
+            patients_data_dict["skill_" + str(skill)] = skill_list
+
+        patients_data_dict["Service time"] = service_times
+        patients_data_dict["Average travelling time"] = travelling_times
+
+        patients_data_frame = pd.DataFrame(data=patients_data_dict)
+
+        teams_ids = [id for id in range(1, len(teams) + 1)]
+        daily_availability = 300
+        teams_availability = [daily_availability for _ in range(1, len(teams) + 1)]
+
+        teams_data_dict = {"Team ID": teams_ids,
+                           "Daily cap": teams_availability}
+
+        teams_data_frame = pd.DataFrame(data=teams_data_dict)
+
+        os.makedirs("csv_input", exist_ok=True)
+        patients_data_frame.to_csv(path_or_buf="csv_input/patients.csv", sep="\t", index=False)
+        teams_data_frame.to_csv(path_or_buf="csv_input/teams.csv", sep="\t", index=False)
+
+    def build_teams_procedure_sets(self):
+        teams_procedure_sets = {}
+        for team_id in teams.keys():
+            team_procedures = set()
+            for skill in skills_matrix.keys():
+                for operator in teams[team_id]:
+                    if skills_matrix[skill][operator] == 1:
+                        team_procedures.add(skill)
+            teams_procedure_sets[team_id] = team_procedures
+
+        return teams_procedure_sets
+
+    def compute_patients_skills(self, patients_procedures):
+        teams_procedure_sets = self.build_teams_procedure_sets()
+        patient_skills = {}
+
+        for patient in range(1, len(patients_procedures) + 1):
+            procedures = set(patients_procedures[patient].keys())
+            least_skill_level = 0 # higher skill number means lower skill
+            for (team, procedure_set) in teams_procedure_sets.items():
+                if procedures.issubset(procedure_set) and teams_skill[team] > least_skill_level:
+                    least_skill_level = teams_skill[team]
+
+            patient_skills[patient] = least_skill_level
+
+        return patient_skills
