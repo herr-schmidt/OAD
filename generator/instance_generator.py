@@ -185,6 +185,7 @@ class OADInstanceGenerator():
         teams_availability = [daily_availability for _ in range(1, len(teams) + 1)]
 
         teams_data_dict = {"Team ID": teams_ids,
+                           "Team skill": teams_skill.values(),
                            "Daily cap": teams_availability}
 
         teams_data_frame = pd.DataFrame(data=teams_data_dict)
