@@ -167,8 +167,9 @@ class OADInstanceGenerator():
         patient_skills = self.compute_patients_skills(input["procedures"])
         treatments_per_week = input["treatments_per_week"]
         
+        skills = max(teams_skill.values())
         
-        for skill in range(1, max(teams_skill.values()) + 1):
+        for skill in range(1, skills + 1):
             skill_list = [0 for _ in patients_ids]
             for patient in patients_ids:
                 if patient_skills[patient] == skill:
@@ -190,9 +191,12 @@ class OADInstanceGenerator():
 
         teams_data_frame = pd.DataFrame(data=teams_data_dict)
 
+        patterns_data_frame = pd.DataFrame(data={"Patterns": self.generate_patterns(total_skills=skills, patients_skills=patient_skills, treatments_per_week=treatments_per_week)})
+
         os.makedirs("csv_input", exist_ok=True)
         patients_data_frame.to_csv(path_or_buf="csv_input/patients.csv", sep="\t", index=False)
         teams_data_frame.to_csv(path_or_buf="csv_input/teams.csv", sep="\t", index=False)
+        patterns_data_frame.to_csv(path_or_buf="csv_input/patterns.csv", sep="\t", index=False)
 
     def build_teams_procedure_sets(self):
         teams_procedure_sets = {}
@@ -220,3 +224,19 @@ class OADInstanceGenerator():
             patient_skills[patient] = least_skill_level
 
         return patient_skills
+    
+    def generate_patterns(self, total_skills, patients_skills, treatments_per_week, scheduling_horizon=5):
+        patterns = []
+        for skill in range(1, total_skills + 1):
+            skill_treatments_per_week = set(filter(lambda x: x is not None,
+                                                   map(lambda treatment_tuple: treatment_tuple[1] if patients_skills[treatment_tuple[0]] == skill else None, treatments_per_week.items()))
+                                            )
+            
+            if len(skill_treatments_per_week) == 0:
+                skill_treatments_per_week = set([i for i in range(1, scheduling_horizon + 1)])
+
+            for treatments in skill_treatments_per_week:
+                schedule = [skill for _ in range(0, treatments)] + [0 for _ in range(treatments + 1, scheduling_horizon + 1)]
+                random.shuffle(schedule)
+                patterns.append(schedule)
+        return patterns
