@@ -131,16 +131,16 @@ class OADInstanceGenerator():
         average_distances = self.compute_average_distances(addresses)
 
         return {"take_in_charge": take_in_charge,
-                "dismission": dismission,
-                "treatments_per_week": treatments_per_week,
-                "procedures": procedures,
-                "daily_treatments_duration": daily_treatments_duration,
-                "addresses": addresses,
-                "average_distances": average_distances,
-                "skills": skills_matrix,
-                "patients": patient,
-                "teams": len(skills_matrix[1])
-                }
+                      "dismission": dismission,
+                      "treatments_per_week": treatments_per_week,
+                      "procedures": procedures,
+                      "daily_treatments_duration": daily_treatments_duration,
+                      "addresses": addresses,
+                      "average_distances": average_distances,
+                      "skills": skills_matrix,
+                      "patients": patient,
+                      "teams": len(skills_matrix[1])
+                     }
 
     def compute_average_distances(self, addresses):
         average_distances = {}
@@ -157,29 +157,45 @@ class OADInstanceGenerator():
 
         return average_distances
 
-    def export_to_csv(self, input):
+    def export_to_csv(self, input, input_size=None):
         patients_ids = [id for id in range(1, input["patients"] + 1)]
         service_times = [service_time for service_time in input["daily_treatments_duration"].values()]
         travelling_times = [round(travelling_time, 3) for travelling_time in input["average_distances"].values()]
 
         patients_data_dict = {"ID": patients_ids}
-        
+
         patient_skills = self.compute_patients_skills(input["procedures"])
         treatments_per_week = input["treatments_per_week"]
-        
+
         skills = max(teams_skill.values())
-        
-        for skill in range(1, skills + 1):
+        skills_columns = []
+
+        for skill in range(skills, 0, -1):
             skill_list = [0 for _ in patients_ids]
             for patient in patients_ids:
                 if patient_skills[patient] == skill:
                     skill_list[patient - 1] = treatments_per_week[patient]
-            patients_data_dict["skill_" + str(skill)] = skill_list
+            skill_column = "Skill_" + str(skill)
+            skills_columns.append(skill_column)
+            patients_data_dict[skill_column] = skill_list
 
         patients_data_dict["Service time"] = service_times
         patients_data_dict["Average travelling time"] = travelling_times
 
+        if input_size:
+            to_discard = len(patients_data_dict["ID"]) - input_size
+            if to_discard < 0:
+                raise Exception("Not enough patients in the specified calendar slice. Try to widen the slice or provide a bigger calendar.")
+            for _ in range(to_discard):
+                discard_index = random.choice(patients_data_dict["ID"])
+                patients_data_dict["ID"].pop(discard_index)
+                patients_data_dict["Service time"].pop(discard_index)
+                patients_data_dict["Average travelling time"].pop(discard_index)
+                for skill_column in skills_columns:
+                    patients_data_dict[skill_column].pop(discard_index)
+
         patients_data_frame = pd.DataFrame(data=patients_data_dict)
+        patients_data_frame.sort_values(by=skills_columns, ascending=False, inplace=True)
 
         teams_ids = [id for id in range(1, len(teams) + 1)]
         daily_availability = 300
@@ -189,14 +205,16 @@ class OADInstanceGenerator():
                            "Team skill": teams_skill.values(),
                            "Daily cap": teams_availability}
 
+        patterns_data_frame = pd.DataFrame(data={"Patterns": self.generate_patterns(total_skills=skills)})
+
         teams_data_frame = pd.DataFrame(data=teams_data_dict)
 
-        patterns_data_frame = pd.DataFrame(data={"Patterns": self.generate_patterns(total_skills=skills, patients_skills=patient_skills, treatments_per_week=treatments_per_week)})
-
         os.makedirs("csv_input", exist_ok=True)
-        patients_data_frame.to_csv(path_or_buf="csv_input/patients.csv", sep="\t", index=False)
-        teams_data_frame.to_csv(path_or_buf="csv_input/teams.csv", sep="\t", index=False)
-        patterns_data_frame.to_csv(path_or_buf="csv_input/patterns.csv", sep="\t", index=False)
+        patients_data_frame.to_csv(path_or_buf="csv_input/instance.csv", sep="\t", index=False, mode="w")
+        open("csv_input/instance.csv", mode="a").write("\n")
+        patterns_data_frame.to_csv(path_or_buf="csv_input/instance.csv", sep="\t", index=False, mode="a")
+        open("csv_input/instance.csv", mode="a").write("\n")
+        teams_data_frame.to_csv(path_or_buf="csv_input/instance.csv", sep="\t", index=False, mode="a")
 
     def build_teams_procedure_sets(self):
         teams_procedure_sets = {}
@@ -216,24 +234,19 @@ class OADInstanceGenerator():
 
         for patient in range(1, len(patients_procedures) + 1):
             procedures = set(patients_procedures[patient].keys())
-            least_skill_level = 0 # higher skill number means lower skill
+            least_skill_level = max(teams_skill.values())  # higher value means higher skill
             for (team, procedure_set) in teams_procedure_sets.items():
-                if procedures.issubset(procedure_set) and teams_skill[team] > least_skill_level:
+                if procedures.issubset(procedure_set) and teams_skill[team] < least_skill_level:
                     least_skill_level = teams_skill[team]
 
             patient_skills[patient] = least_skill_level
 
         return patient_skills
-    
-    def generate_patterns(self, total_skills, patients_skills, treatments_per_week, scheduling_horizon=5):
+
+    def generate_patterns(self, total_skills, scheduling_horizon=5):
         patterns = []
         for skill in range(1, total_skills + 1):
-            skill_treatments_per_week = set(filter(lambda x: x is not None,
-                                                   map(lambda treatment_tuple: treatment_tuple[1] if patients_skills[treatment_tuple[0]] == skill else None, treatments_per_week.items()))
-                                            )
-            
-            if len(skill_treatments_per_week) == 0:
-                skill_treatments_per_week = set([i for i in range(1, scheduling_horizon + 1)])
+            skill_treatments_per_week = set([i for i in range(1, scheduling_horizon + 1)])
 
             for treatments in skill_treatments_per_week:
                 schedule = [skill for _ in range(0, treatments)] + [0 for _ in range(treatments + 1, scheduling_horizon + 1)]
