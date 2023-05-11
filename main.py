@@ -53,9 +53,7 @@ if __name__ == "__main__":
         len=400
     ))
 
-    # fig.show()
+    fig.show()
 
-    solver_input_dict = generator.generate_input(event_calendar, first_day=0, last_day=50)
-    # pprint.pp(solver_input_dict)
-
-    generator.export_to_csv(solver_input_dict, input_size=60)
+    input = generator.generate_input(event_calendar, init_day=10)
+    generator.export_to_csv(input)
