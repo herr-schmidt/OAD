@@ -146,7 +146,7 @@ class OADInstanceGenerator():
 
         return average_distances
 
-    def export_to_csv(self, input_instances):
+    def export_to_xlsx(self, input_instances):
         for k in input_instances.keys():
             input = input_instances[k]
             file_name = k
@@ -160,19 +160,10 @@ class OADInstanceGenerator():
             patients_data_dict = {"ID": patients_ids}
 
             patient_skills = self.compute_patients_skills(input["procedures"])
-            treatments_per_week = input["treatments_per_week"]
-
-            skills = max(teams_skill.values())
-            skills_columns = []
-
-            for skill in range(skills, 0, -1):
-                skill_list = {p: 0 for p in patients_ids}
-                for patient in patients_ids:
-                    if patient_skills[patient] == skill:
-                        skill_list[patient] = treatments_per_week[patient]
-                skill_column = "Skill_" + str(skill)
-                skills_columns.append(skill_column)
-                patients_data_dict[skill_column] = list(skill_list.values())
+            treatments_per_week = [visit for visit in input["treatments_per_week"].values()]
+            
+            patients_data_dict["Skill"] = [skill for skill in patient_skills.values()]
+            patients_data_dict["Treatments_per_week"] = treatments_per_week
 
             patients_data_dict["Service_time"] = service_times
             patients_data_dict["Average_travelling_time"] = travelling_times
@@ -181,26 +172,47 @@ class OADInstanceGenerator():
             patients_data_dict["Duration"] = durations
 
             patients_data_frame = pd.DataFrame(data=patients_data_dict)
-            patients_data_frame.sort_values(by=skills_columns, ascending=False, inplace=True)
+            patients_data_frame.sort_values(by=["Skill", "Treatments_per_week"], ascending=[True, False], inplace=True)
 
             teams_ids = [id for id in range(1, len(teams) + 1)]
-            daily_availability = 300
-            teams_availability = [daily_availability for _ in range(1, len(teams) + 1)]
+            weekly_availability = 1500
+            teams_availability = [weekly_availability for _ in range(1, len(teams) + 1)]
 
-            teams_data_dict = {"Team ID": teams_ids,
-                               "Team skill": teams_skill.values(),
-                               "Daily cap": teams_availability}
+            teams_data_dict = {"Team_ID": teams_ids,
+                               "Team_skill": teams_skill.values(),
+                               "Weekly_capacity": teams_availability}
 
-            patterns_data_frame = pd.DataFrame(data={"Patterns": self.generate_patterns(total_skills=skills)})
+            total_skills = len(set(teams_skill.values()))
+            patterns_data_frame = pd.DataFrame(data={"Patterns": self.generate_patterns(total_skills=total_skills)})
 
             teams_data_frame = pd.DataFrame(data=teams_data_dict)
+            teams_data_frame.sort_values(by="Team_skill", ascending=True, inplace=True)
 
-            os.makedirs("csv_input", exist_ok=True)
-            patients_data_frame.to_csv(path_or_buf="csv_input/" + file_name + ".csv", sep="\t", index=False, mode="w")
-            open("csv_input/" + file_name + ".csv", mode="a").write("\n")
-            patterns_data_frame.to_csv(path_or_buf="csv_input/" + file_name + ".csv", sep="\t", index=False, mode="a")
-            open("csv_input/" + file_name + ".csv", mode="a").write("\n")
-            teams_data_frame.to_csv(path_or_buf="csv_input/" + file_name + ".csv", sep="\t", index=False, mode="a")
+            teams_number_data_frame = pd.DataFrame(data={"Teams": [len(teams_ids)]})
+
+            sorted_patients_skills = list(reversed(patients_data_frame["Skill"].tolist()))
+            skill_match = []
+            for skill in range(1, total_skills):
+                try:
+                    skill_match.append(len(sorted_patients_skills) - sorted_patients_skills.index(skill))
+                except:
+                    skill_match.append(-1)
+
+            skill_match_data_frame = pd.DataFrame(data={"Skill_match": skill_match})
+
+
+            os.makedirs("input", exist_ok=True)
+            with pd.ExcelWriter(path="input/" + file_name + ".xlsx", mode="w", engine="openpyxl") as writer:
+                patients_data_frame.to_excel(excel_writer=writer, index=False,  columns=["Treatments_per_week"], sheet_name="visit", header=False)
+            with pd.ExcelWriter(path="input/" + file_name + ".xlsx", mode="a", engine="openpyxl") as writer:
+                teams_number_data_frame.to_excel(excel_writer=writer, index=False,  columns=["Teams"], sheet_name="Operators", header=False)
+                teams_data_frame.to_excel(excel_writer=writer, index=False,  columns=["Weekly_capacity"], sheet_name="capacity", header=False)
+                patterns_data_frame.to_excel(excel_writer=writer, index=False,  columns=["Patterns"], sheet_name="pattern", header=False)
+                patients_data_frame.to_excel(excel_writer=writer, index=False,  columns=["Average_travelling_time"], sheet_name="travel", header=False)
+                patients_data_frame.to_excel(excel_writer=writer, index=False,  columns=["Service_time"], sheet_name="service", header=False)
+                skill_match_data_frame.to_excel(excel_writer=writer, index=False,  columns=["Skill_match"], sheet_name="SkillMatch", header=False)
+                teams_data_frame.to_excel(excel_writer=writer, index=False,  columns=["Team_skill"], sheet_name="TeamsSkills", header=False)
+
 
     def build_teams_procedure_sets(self):
         teams_procedure_sets = {}
@@ -230,7 +242,7 @@ class OADInstanceGenerator():
         return patient_skills
 
     def generate_patterns(self, total_skills, scheduling_horizon=5):
-        patterns = []
+        patterns = [[0 for _ in range(0, scheduling_horizon)]]
         for skill in range(1, total_skills + 1):
             skill_treatments_per_week = set([i for i in range(1, scheduling_horizon + 1)])
 
