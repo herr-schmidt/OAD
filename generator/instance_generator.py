@@ -91,8 +91,8 @@ class OADInstanceGenerator():
                             break
                         if Procedures.PRESAINCARICO.value in calendar[address][day]:
                             patient += 1
-                            take_in_charge[patient] = day + 1
-                            duration[patient] = calendar[address][day][Procedures.PRESAINCARICO.value]["duration"]
+                            take_in_charge[patient] = 0 # day + 1
+                            duration[patient] = calendar[address][day][Procedures.PRESAINCARICO.value]["duration"] + 2 # +2: add arrival and dismission
                             dismission[patient] = day + calendar[address][day][Procedures.PRESAINCARICO.value]["duration"] + 1
                             addresses[patient] = address
                             break
@@ -100,8 +100,8 @@ class OADInstanceGenerator():
                     for day in range(init_day + 1, len(calendar[address])):
                         if Procedures.PRESAINCARICO.value in calendar[address][day]:
                             patient += 1
-                            take_in_charge[patient] = day + 1
-                            duration[patient] = calendar[address][day][Procedures.PRESAINCARICO.value]["duration"]
+                            take_in_charge[patient] = day - init_day
+                            duration[patient] = calendar[address][day][Procedures.PRESAINCARICO.value]["duration"] + 2 # +2: add arrival and dismission
                             dismission[patient] = day + calendar[address][day][Procedures.PRESAINCARICO.value]["duration"] + 1
                             addresses[patient] = address
 
@@ -154,7 +154,7 @@ class OADInstanceGenerator():
             patients_ids = [id for id in list(input["take_in_charge"].keys())]
             service_times = [service_time for service_time in input["daily_treatments_duration"].values()]
             travelling_times = [round(travelling_time, 3) for travelling_time in input["average_distances"].values()]
-            take_in_charge_day = [take_in_charge + 1 for take_in_charge in input["take_in_charge"].values()]
+            take_in_charge_day = [take_in_charge for take_in_charge in input["take_in_charge"].values()]
             durations = [duration for duration in input["duration"].values()]
 
             patients_data_dict = {"ID": patients_ids}
