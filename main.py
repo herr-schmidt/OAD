@@ -55,5 +55,5 @@ if __name__ == "__main__":
 
     fig.show()
 
-    input = generator.generate_input(event_calendar, init_day=10)
-    generator.export_to_xlsx(input)
+    input = generator.generate_initialization_input(event_calendar, init_day=10)
+    generator.export_to_xlsx(input, 1)

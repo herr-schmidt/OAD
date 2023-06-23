@@ -72,64 +72,114 @@ class OADInstanceGenerator():
                 else:
                     day += 1
         return calendar
-    
-    def generate_input(self, calendar, init_day, treatments_number_range=(2, 5)):
-        input_instances = {"initialization": None,
-                           "post_initialization": None}
-        
-        patient = 0
-        for k in input_instances.keys():
-            take_in_charge = {}
-            dismission = {}
-            duration = {}
-            addresses = {}
 
-            for address in calendar.keys():
-                if k == "initialization":
-                    for day in range(init_day, -1, -1):
-                        if Procedures.DIMISSIONE.value in calendar[address][day]:
-                            break
-                        if Procedures.PRESAINCARICO.value in calendar[address][day]:
-                            patient += 1
-                            take_in_charge[patient] = 0 # day + 1
-                            duration[patient] = calendar[address][day][Procedures.PRESAINCARICO.value]["duration"] + 2 # +2: add arrival and dismission
-                            dismission[patient] = day + calendar[address][day][Procedures.PRESAINCARICO.value]["duration"] + 1
-                            addresses[patient] = address
-                            break
-                else:            
-                    for day in range(init_day + 1, len(calendar[address])):
-                        if Procedures.PRESAINCARICO.value in calendar[address][day]:
-                            patient += 1
-                            take_in_charge[patient] = day - init_day
-                            duration[patient] = calendar[address][day][Procedures.PRESAINCARICO.value]["duration"] + 2 # +2: add arrival and dismission
-                            dismission[patient] = day + calendar[address][day][Procedures.PRESAINCARICO.value]["duration"] + 1
-                            addresses[patient] = address
+    def generate_initialization_input(self, calendar, init_day, treatments_number_range=(2, 5)):
+        self.patient = 0
 
-            treatments_per_week = {p: random.randint(low=1, high=6) for p in list(addresses.keys())}
+        take_in_charge = {}
+        dismission = {}
+        duration = {}
+        addresses = {}
+        address_patient_id_mapping = {}
 
-            procedures = {}
-            daily_treatments_duration = {}
-            for p in list(addresses.keys()):
-                patient_procedures = {procedure: procedure_time_mapping[procedure] for procedure in self.generate_procedures_set(treatments_number_range)}
-                procedures[p] = patient_procedures
-                daily_treatments_duration[p] = sum(procedure_time for procedure_time in patient_procedures.values())
+        for address in calendar.keys():
+            for day in range(init_day, -1, -1):
+                if Procedures.DIMISSIONE.value in calendar[address][day]:
+                    break
+                if Procedures.PRESAINCARICO.value in calendar[address][day]:
+                    self.patient += 1
+                    take_in_charge[self.patient] = 0  # day + 1
+                    duration[self.patient] = calendar[address][day][Procedures.PRESAINCARICO.value]["duration"] + 2  # +2: add arrival and dismission
+                    dismission[self.patient] = day + calendar[address][day][Procedures.PRESAINCARICO.value]["duration"] + 1
+                    addresses[self.patient] = address
+                    address_patient_id_mapping[address] = self.patient
+                    break
+
+        treatments_per_week = {p: random.randint(low=1, high=6) for p in list(addresses.keys())}
+        activity = {} # -1: no longer active; 0: last lap (dismission found); 1: active
+
+        procedures = {}
+        daily_treatments_duration = {}
+        for p in list(addresses.keys()):
+            patient_procedures = {procedure: procedure_time_mapping[procedure] for procedure in self.generate_procedures_set(treatments_number_range)}
+            procedures[p] = patient_procedures
+            daily_treatments_duration[p] = sum(procedure_time for procedure_time in patient_procedures.values())
+            activity[p] = 1 # initialization: we assume no dismission can occur, so every patient is indefinitely active
 
             average_distances = self.compute_average_distances(addresses)
 
-            input_instances[k] = {"take_in_charge": take_in_charge,
-                                  "duration": duration,
-                                  "dismission": dismission,
-                                  "treatments_per_week": treatments_per_week,
-                                  "procedures": procedures,
-                                  "daily_treatments_duration": daily_treatments_duration,
-                                  "addresses": addresses,
-                                  "average_distances": average_distances,
-                                  "skills": skills_matrix,
-                                  "patients": patient,
-                                  "teams": len(skills_matrix[1])
-                                 }
-            
-        return input_instances
+        return {"take_in_charge": take_in_charge,
+                "duration": duration,
+                "dismission": dismission,
+                "treatments_per_week": treatments_per_week,
+                "procedures": procedures,
+                "daily_treatments_duration": daily_treatments_duration,
+                "addresses": addresses,
+                "average_distances": average_distances,
+                "skills": skills_matrix,
+                "patients": self.patient,
+                "teams": len(skills_matrix[1]),
+                "activity": activity,
+                "address_patient_id_mapping": address_patient_id_mapping
+                }
+
+    def generate_post_init_input(self, calendar, init_day, step=5, treatments_number_range=(2, 5)):
+        calendar_span = len(calendar[list(calendar.keys())[0]])
+
+        # full post-initialization batches we can get
+        batches = (calendar_span - (init_day + 1)) // step
+
+        take_in_charge = {}
+        dismission = {}
+        duration = {}
+        addresses = {}
+
+        for address in calendar.keys():
+            first_batch_day = init_day + (step * (batches - 1) + 1)
+            for day in range(first_batch_day, first_batch_day + step):
+                procedure = calendar[address][day]
+                arrival_departure_events = []
+                # take in charge: need to add new patient (new id)
+                if procedure in [Procedures.PRESAINCARICO.value]:
+                    self.patient += 1
+                    take_in_charge[self.patient] = day - init_day
+                    duration[self.patient] = calendar[address][day][procedure]["duration"] + 2  # +2: add arrival and dismission
+                    dismission[self.patient] = day + calendar[address][day][procedure]["duration"] + 1
+                    addresses[self.patient] = address
+                    activity[self.patient] = 1 # set active
+                
+                arrival_departure_events.append(procedure)
+                
+                if len(arrival_departure_events) == 1 and Procedures.DIMISSIONE.value in arrival_departure_events:
+                    #segna come last lap
+                    activity[address_patient_id_mapping[address]] = 0
+                if len(arrival_departure_events) == 2 and arrival_departure_events[0] == Procedures.DIMISSIONE.value and arrival_departure_events[1] == Procedures.PRESAINCARICO.value:
+                    activity[address_patient_id_mapping[address]] = 0
+
+
+        treatments_per_week = {p: random.randint(low=1, high=6) for p in list(addresses.keys())}
+
+        procedures = {}
+        daily_treatments_duration = {}
+        for p in list(addresses.keys()):
+            patient_procedures = {procedure: procedure_time_mapping[procedure] for procedure in self.generate_procedures_set(treatments_number_range)}
+            procedures[p] = patient_procedures
+            daily_treatments_duration[p] = sum(procedure_time for procedure_time in patient_procedures.values())
+
+        average_distances = self.compute_average_distances(addresses)
+
+        return {"take_in_charge": take_in_charge,
+                "duration": duration,
+                "dismission": dismission,
+                "treatments_per_week": treatments_per_week,
+                "procedures": procedures,
+                "daily_treatments_duration": daily_treatments_duration,
+                "addresses": addresses,
+                "average_distances": average_distances,
+                "skills": skills_matrix,
+                "patients": self.patient,
+                "teams": len(skills_matrix[1])
+                }
 
     def compute_average_distances(self, addresses):
         average_distances = {}
@@ -146,73 +196,70 @@ class OADInstanceGenerator():
 
         return average_distances
 
-    def export_to_xlsx(self, input_instances):
-        for k in input_instances.keys():
-            input = input_instances[k]
-            file_name = k
+    def export_to_xlsx(self, input, k):
 
-            patients_ids = [id for id in list(input["take_in_charge"].keys())]
-            service_times = [service_time for service_time in input["daily_treatments_duration"].values()]
-            travelling_times = [round(travelling_time, 3) for travelling_time in input["average_distances"].values()]
-            take_in_charge_day = [take_in_charge for take_in_charge in input["take_in_charge"].values()]
-            durations = [duration for duration in input["duration"].values()]
+        file_name = "INS" + str(k)
 
-            patients_data_dict = {"ID": patients_ids}
+        patients_ids = [id for id in list(input["take_in_charge"].keys())]
+        service_times = [service_time for service_time in input["daily_treatments_duration"].values()]
+        travelling_times = [round(travelling_time, 3) for travelling_time in input["average_distances"].values()]
+        take_in_charge_day = [take_in_charge for take_in_charge in input["take_in_charge"].values()]
+        durations = [duration for duration in input["duration"].values()]
 
-            patient_skills = self.compute_patients_skills(input["procedures"])
-            treatments_per_week = [visit for visit in input["treatments_per_week"].values()]
-            
-            patients_data_dict["Skill"] = [skill for skill in patient_skills.values()]
-            patients_data_dict["Treatments_per_week"] = treatments_per_week
+        patients_data_dict = {"ID": patients_ids}
 
-            patients_data_dict["Service_time"] = service_times
-            patients_data_dict["Average_travelling_time"] = travelling_times
+        patient_skills = self.compute_patients_skills(input["procedures"])
+        treatments_per_week = [visit for visit in input["treatments_per_week"].values()]
 
-            patients_data_dict["Arrival_day"] = take_in_charge_day
-            patients_data_dict["Duration"] = durations
+        patients_data_dict["Skill"] = [skill for skill in patient_skills.values()]
+        patients_data_dict["Treatments_per_week"] = treatments_per_week
 
-            patients_data_frame = pd.DataFrame(data=patients_data_dict)
-            patients_data_frame.sort_values(by=["Skill", "Treatments_per_week"], ascending=[True, False], inplace=True)
+        patients_data_dict["Service_time"] = service_times
+        patients_data_dict["Average_travelling_time"] = travelling_times
 
-            teams_ids = [id for id in range(1, len(teams) + 1)]
-            weekly_availability = 1500
-            teams_availability = [weekly_availability for _ in range(1, len(teams) + 1)]
+        patients_data_dict["Arrival_day"] = take_in_charge_day
+        patients_data_dict["Duration"] = durations
 
-            teams_data_dict = {"Team_ID": teams_ids,
-                               "Team_skill": teams_skill.values(),
-                               "Weekly_capacity": teams_availability}
+        patients_data_frame = pd.DataFrame(data=patients_data_dict)
+        patients_data_frame.sort_values(by=["Skill", "Treatments_per_week"], ascending=[True, False], inplace=True)
 
-            total_skills = len(set(teams_skill.values()))
-            patterns_data_frame = pd.DataFrame(data={"Patterns": self.generate_patterns(total_skills=total_skills)})
+        teams_ids = [id for id in range(1, len(teams) + 1)]
+        weekly_availability = 1500
+        teams_availability = [weekly_availability for _ in range(1, len(teams) + 1)]
 
-            teams_data_frame = pd.DataFrame(data=teams_data_dict)
-            teams_data_frame.sort_values(by="Team_skill", ascending=True, inplace=True)
+        teams_data_dict = {"Team_ID": teams_ids,
+                           "Team_skill": teams_skill.values(),
+                           "Weekly_capacity": teams_availability}
 
-            teams_number_data_frame = pd.DataFrame(data={"Teams": [len(teams_ids)]})
+        total_skills = len(set(teams_skill.values()))
+        patterns_data_frame = pd.DataFrame(data={"Patterns": self.generate_patterns(total_skills=total_skills)})
 
-            sorted_patients_skills = list(reversed(patients_data_frame["Skill"].tolist()))
-            skill_match = []
-            for skill in range(1, total_skills):
-                try:
-                    skill_match.append(len(sorted_patients_skills) - sorted_patients_skills.index(skill))
-                except:
-                    skill_match.append(-1)
+        teams_data_frame = pd.DataFrame(data=teams_data_dict)
+        teams_data_frame.sort_values(by="Team_skill", ascending=True, inplace=True)
 
-            skill_match_data_frame = pd.DataFrame(data={"Skill_match": skill_match})
+        teams_number_data_frame = pd.DataFrame(data={"Teams": [len(teams_ids)]})
 
+        sorted_patients_skills = list(reversed(patients_data_frame["Skill"].tolist()))
+        skill_match = []
+        for skill in range(1, total_skills):
+            try:
+                skill_match.append(len(sorted_patients_skills) - sorted_patients_skills.index(skill))
+            except:
+                skill_match.append(-1)
 
-            os.makedirs("input", exist_ok=True)
-            with pd.ExcelWriter(path="input/" + file_name + ".xlsx", mode="w", engine="openpyxl") as writer:
-                patients_data_frame.to_excel(excel_writer=writer, index=False,  columns=["Treatments_per_week"], sheet_name="visit", header=False)
-            with pd.ExcelWriter(path="input/" + file_name + ".xlsx", mode="a", engine="openpyxl") as writer:
-                teams_number_data_frame.to_excel(excel_writer=writer, index=False,  columns=["Teams"], sheet_name="Operators", header=False)
-                teams_data_frame.to_excel(excel_writer=writer, index=False,  columns=["Weekly_capacity"], sheet_name="capacity", header=False)
-                patterns_data_frame.to_excel(excel_writer=writer, index=False,  columns=["Patterns"], sheet_name="pattern", header=False)
-                patients_data_frame.to_excel(excel_writer=writer, index=False,  columns=["Average_travelling_time"], sheet_name="travel", header=False)
-                patients_data_frame.to_excel(excel_writer=writer, index=False,  columns=["Service_time"], sheet_name="service", header=False)
-                skill_match_data_frame.to_excel(excel_writer=writer, index=False,  columns=["Skill_match"], sheet_name="SkillMatch", header=False)
-                teams_data_frame.to_excel(excel_writer=writer, index=False,  columns=["Team_skill"], sheet_name="TeamsSkills", header=False)
+        skill_match_data_frame = pd.DataFrame(data={"Skill_match": skill_match})
 
+        os.makedirs("input", exist_ok=True)
+        with pd.ExcelWriter(path="input/" + file_name + ".xlsx", mode="w", engine="openpyxl") as writer:
+            patients_data_frame.to_excel(excel_writer=writer, index=False,  columns=["Treatments_per_week"], sheet_name="visit", header=False)
+        with pd.ExcelWriter(path="input/" + file_name + ".xlsx", mode="a", engine="openpyxl") as writer:
+            teams_number_data_frame.to_excel(excel_writer=writer, index=False,  columns=["Teams"], sheet_name="Operators", header=False)
+            teams_data_frame.to_excel(excel_writer=writer, index=False,  columns=["Weekly_capacity"], sheet_name="capacity", header=False)
+            patterns_data_frame.to_excel(excel_writer=writer, index=False,  columns=["Patterns"], sheet_name="pattern", header=False)
+            patients_data_frame.to_excel(excel_writer=writer, index=False,  columns=["Average_travelling_time"], sheet_name="travel", header=False)
+            patients_data_frame.to_excel(excel_writer=writer, index=False,  columns=["Service_time"], sheet_name="service", header=False)
+            skill_match_data_frame.to_excel(excel_writer=writer, index=False,  columns=["Skill_match"], sheet_name="SkillMatch", header=False)
+            teams_data_frame.to_excel(excel_writer=writer, index=False,  columns=["Team_skill"], sheet_name="TeamsSkills", header=False)
 
     def build_teams_procedure_sets(self):
         teams_procedure_sets = {}
