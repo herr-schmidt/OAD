@@ -128,5 +128,5 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# output folder
-/csv_input
+# input folder
+/input

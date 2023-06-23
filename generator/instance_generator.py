@@ -1,3 +1,4 @@
+import copy
 from numpy import random
 from generator.data import addresses, procedure_time_mapping, procedure_avg_occurrences_mapping, Procedures, distance_matrix, skills_matrix, teams, teams_skill
 import pandas as pd
@@ -15,6 +16,11 @@ class OADInstanceGenerator():
         self.seed = seed
         random.seed(seed=seed)
         self.procedures_frequencies = self.generate_procedures_frequencies()
+        self.patient = 0
+        self.activity = {} # -1: no longer active; 0: last lap (dismission found); 1: active
+        self.address_patient_id_mapping = {}
+
+        self.input = {}
 
     def generate_procedures_frequencies(self):
         # (1 - 1 / patients_number): probability of a patients being visited
@@ -74,13 +80,10 @@ class OADInstanceGenerator():
         return calendar
 
     def generate_initialization_input(self, calendar, init_day, treatments_number_range=(2, 5)):
-        self.patient = 0
-
         take_in_charge = {}
         dismission = {}
         duration = {}
         addresses = {}
-        address_patient_id_mapping = {}
 
         for address in calendar.keys():
             for day in range(init_day, -1, -1):
@@ -92,36 +95,39 @@ class OADInstanceGenerator():
                     duration[self.patient] = calendar[address][day][Procedures.PRESAINCARICO.value]["duration"] + 2  # +2: add arrival and dismission
                     dismission[self.patient] = day + calendar[address][day][Procedures.PRESAINCARICO.value]["duration"] + 1
                     addresses[self.patient] = address
-                    address_patient_id_mapping[address] = self.patient
+                    self.activity[self.patient] = 1 # initialization: we assume no dismission can occur, so every patient is indefinitely active
+                    self.address_patient_id_mapping[address] = self.patient
                     break
 
         treatments_per_week = {p: random.randint(low=1, high=6) for p in list(addresses.keys())}
-        activity = {} # -1: no longer active; 0: last lap (dismission found); 1: active
 
         procedures = {}
         daily_treatments_duration = {}
+        ids = {}
         for p in list(addresses.keys()):
+            ids[p] = p
+
             patient_procedures = {procedure: procedure_time_mapping[procedure] for procedure in self.generate_procedures_set(treatments_number_range)}
             procedures[p] = patient_procedures
             daily_treatments_duration[p] = sum(procedure_time for procedure_time in patient_procedures.values())
-            activity[p] = 1 # initialization: we assume no dismission can occur, so every patient is indefinitely active
 
             average_distances = self.compute_average_distances(addresses)
 
-        return {"take_in_charge": take_in_charge,
-                "duration": duration,
-                "dismission": dismission,
-                "treatments_per_week": treatments_per_week,
-                "procedures": procedures,
-                "daily_treatments_duration": daily_treatments_duration,
-                "addresses": addresses,
-                "average_distances": average_distances,
-                "skills": skills_matrix,
-                "patients": self.patient,
-                "teams": len(skills_matrix[1]),
-                "activity": activity,
-                "address_patient_id_mapping": address_patient_id_mapping
-                }
+        self.input = {"ids": ids,
+                      "take_in_charge": take_in_charge,
+                      "duration": duration,
+                      "dismission": dismission,
+                      "treatments_per_week": treatments_per_week,
+                      "procedures": procedures,
+                      "daily_treatments_duration": daily_treatments_duration,
+                      "addresses": addresses,
+                      "average_distances": average_distances,
+                      "skills": skills_matrix,
+                      "patients": self.patient,
+                      "teams": len(skills_matrix[1])
+                     }
+        
+        return self.input
 
     def generate_post_init_input(self, calendar, init_day, step=5, treatments_number_range=(2, 5)):
         calendar_span = len(calendar[list(calendar.keys())[0]])
@@ -129,57 +135,80 @@ class OADInstanceGenerator():
         # full post-initialization batches we can get
         batches = (calendar_span - (init_day + 1)) // step
 
-        take_in_charge = {}
-        dismission = {}
-        duration = {}
-        addresses = {}
+        post_init_batches = {}
+        for batch in range(1, batches + 1):
+            first_batch_day = init_day + (step * (batch - 1) + 1)
 
-        for address in calendar.keys():
-            first_batch_day = init_day + (step * (batches - 1) + 1)
-            for day in range(first_batch_day, first_batch_day + step):
-                procedure = calendar[address][day]
+            for address in calendar.keys():
                 arrival_departure_events = []
+                duration = 0
+                for day in range(first_batch_day, first_batch_day + step):
+            
+                    for procedure in [Procedures.PRESAINCARICO.value, Procedures.DIMISSIONE.value]:
+                        if procedure in calendar[address][day]:
+                            arrival_departure_events.append(procedure)
+                            if procedure == Procedures.PRESAINCARICO.value:
+                                duration = calendar[address][day][Procedures.PRESAINCARICO.value]["duration"]
+
                 # take in charge: need to add new patient (new id)
-                if procedure in [Procedures.PRESAINCARICO.value]:
+                if len(arrival_departure_events) == 1 and Procedures.PRESAINCARICO.value in arrival_departure_events:
                     self.patient += 1
-                    take_in_charge[self.patient] = day - init_day
-                    duration[self.patient] = calendar[address][day][procedure]["duration"] + 2  # +2: add arrival and dismission
-                    dismission[self.patient] = day + calendar[address][day][procedure]["duration"] + 1
-                    addresses[self.patient] = address
-                    activity[self.patient] = 1 # set active
-                
-                arrival_departure_events.append(procedure)
-                
+
+                    self.input["take_in_charge"][self.patient] = day - init_day
+                    self.input["duration"][self.patient] = duration + 2  # +2: add arrival and dismission
+                    self.input["dismission"][self.patient] = day + duration + 1
+                    self.input["addresses"][self.patient] = address
+
+                    self.activity[self.patient] = 1 # set active
+                    self.address_patient_id_mapping[address] = self.patient
+                    
                 if len(arrival_departure_events) == 1 and Procedures.DIMISSIONE.value in arrival_departure_events:
-                    #segna come last lap
-                    activity[address_patient_id_mapping[address]] = 0
+                    # mark as last lap
+                    self.activity[self.address_patient_id_mapping[address]] = 0
+
                 if len(arrival_departure_events) == 2 and arrival_departure_events[0] == Procedures.DIMISSIONE.value and arrival_departure_events[1] == Procedures.PRESAINCARICO.value:
-                    activity[address_patient_id_mapping[address]] = 0
+                    self.activity[self.address_patient_id_mapping[address]] = -1
 
+                    self.patient += 1
 
-        treatments_per_week = {p: random.randint(low=1, high=6) for p in list(addresses.keys())}
+                    self.input["take_in_charge"][self.patient] = day - init_day
+                    self.input["duration"][self.patient] = duration + 2  # +2: add arrival and dismission
+                    self.input["dismission"][self.patient] = day + duration + 1
+                    self.input["addresses"][self.patient] = address
 
-        procedures = {}
-        daily_treatments_duration = {}
-        for p in list(addresses.keys()):
-            patient_procedures = {procedure: procedure_time_mapping[procedure] for procedure in self.generate_procedures_set(treatments_number_range)}
-            procedures[p] = patient_procedures
-            daily_treatments_duration[p] = sum(procedure_time for procedure_time in patient_procedures.values())
+                    self.activity[self.patient] = 1
+                    self.address_patient_id_mapping[address] = self.patient
 
-        average_distances = self.compute_average_distances(addresses)
+            for patient in copy.deepcopy(self.activity):
+                if self.activity[patient] == -1:
+                    self.delete_input_entries(patient)
+                if self.activity[patient] == 0:
+                    self.activity[patient] = -1
+                if self.activity[patient] == 1:
+                    self.input["treatments_per_week"][patient] = random.randint(low=1, high=6)
 
-        return {"take_in_charge": take_in_charge,
-                "duration": duration,
-                "dismission": dismission,
-                "treatments_per_week": treatments_per_week,
-                "procedures": procedures,
-                "daily_treatments_duration": daily_treatments_duration,
-                "addresses": addresses,
-                "average_distances": average_distances,
-                "skills": skills_matrix,
-                "patients": self.patient,
-                "teams": len(skills_matrix[1])
-                }
+                    self.input["ids"][patient] = patient
+
+                    patient_procedures = {procedure: procedure_time_mapping[procedure] for procedure in self.generate_procedures_set(treatments_number_range)}
+                    self.input["procedures"][patient] = patient_procedures
+                    self.input["daily_treatments_duration"][patient] = sum(procedure_time for procedure_time in patient_procedures.values())
+
+            self.input["average_distances"] = self.compute_average_distances(self.input["addresses"])
+
+            post_init_batches[batch] = copy.deepcopy(self.input)
+
+        return post_init_batches
+    
+    def delete_input_entries(self, patient):
+        self.input["ids"].pop(patient, None)
+        self.input["take_in_charge"].pop(patient, None)
+        self.input["duration"].pop(patient, None)
+        self.input["dismission"].pop(patient, None)
+        self.input["treatments_per_week"].pop(patient, None)
+        self.input["procedures"].pop(patient, None)
+        self.input["daily_treatments_duration"].pop(patient, None)
+        self.input["addresses"].pop(patient, None)
+        self.input["average_distances"].pop(patient, None)
 
     def compute_average_distances(self, addresses):
         average_distances = {}
@@ -196,11 +225,11 @@ class OADInstanceGenerator():
 
         return average_distances
 
-    def export_to_xlsx(self, input, k):
+    def export_to_xlsx(self, input, k, days=5):
 
         file_name = "INS" + str(k)
 
-        patients_ids = [id for id in list(input["take_in_charge"].keys())]
+        patients_ids = [id for id in list(input["ids"].keys())]
         service_times = [service_time for service_time in input["daily_treatments_duration"].values()]
         travelling_times = [round(travelling_time, 3) for travelling_time in input["average_distances"].values()]
         take_in_charge_day = [take_in_charge for take_in_charge in input["take_in_charge"].values()]
@@ -232,8 +261,10 @@ class OADInstanceGenerator():
                            "Weekly_capacity": teams_availability}
 
         total_skills = len(set(teams_skill.values()))
-        patterns_data_frame = pd.DataFrame(data={"Patterns": self.generate_patterns(total_skills=total_skills)})
-
+        patterns = self.generate_patterns(total_skills=total_skills)
+        patterns_data_frame = pd.DataFrame(data={day: [patterns[pattern][day]for pattern in range(0, len(patterns))]  for day in range(0, days)})
+        print(patterns)
+        print(patterns_data_frame)
         teams_data_frame = pd.DataFrame(data=teams_data_dict)
         teams_data_frame.sort_values(by="Team_skill", ascending=True, inplace=True)
 
@@ -247,15 +278,19 @@ class OADInstanceGenerator():
             except:
                 skill_match.append(-1)
 
+        days_dataframe = pd.DataFrame(data={"Days": [days]})
+
         skill_match_data_frame = pd.DataFrame(data={"Skill_match": skill_match})
 
         os.makedirs("input", exist_ok=True)
         with pd.ExcelWriter(path="input/" + file_name + ".xlsx", mode="w", engine="openpyxl") as writer:
-            patients_data_frame.to_excel(excel_writer=writer, index=False,  columns=["Treatments_per_week"], sheet_name="visit", header=False)
+            patients_data_frame.to_excel(excel_writer=writer, index=False,  columns=["ID"], sheet_name="Ids", header=False)
         with pd.ExcelWriter(path="input/" + file_name + ".xlsx", mode="a", engine="openpyxl") as writer:
+            patients_data_frame.to_excel(excel_writer=writer, index=False,  columns=["Treatments_per_week"], sheet_name="visit", header=False)
             teams_number_data_frame.to_excel(excel_writer=writer, index=False,  columns=["Teams"], sheet_name="Operators", header=False)
+            days_dataframe.to_excel(excel_writer=writer, index=False,  columns=["Days"], sheet_name="Days", header=False)
             teams_data_frame.to_excel(excel_writer=writer, index=False,  columns=["Weekly_capacity"], sheet_name="capacity", header=False)
-            patterns_data_frame.to_excel(excel_writer=writer, index=False,  columns=["Patterns"], sheet_name="pattern", header=False)
+            patterns_data_frame.to_excel(excel_writer=writer, index=False, sheet_name="pattern", header=False)
             patients_data_frame.to_excel(excel_writer=writer, index=False,  columns=["Average_travelling_time"], sheet_name="travel", header=False)
             patients_data_frame.to_excel(excel_writer=writer, index=False,  columns=["Service_time"], sheet_name="service", header=False)
             skill_match_data_frame.to_excel(excel_writer=writer, index=False,  columns=["Skill_match"], sheet_name="SkillMatch", header=False)

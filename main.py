@@ -57,3 +57,6 @@ if __name__ == "__main__":
 
     input = generator.generate_initialization_input(event_calendar, init_day=10)
     generator.export_to_xlsx(input, 1)
+
+    post_init = generator.generate_post_init_input(event_calendar, init_day=10)
+    generator.export_to_xlsx(post_init[1], 2)
