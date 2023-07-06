@@ -22,6 +22,9 @@ class OADInstanceGenerator():
 
         self.input = {}
 
+        # map: <post_opt_iteration: [newly_arrived_patient_ids]
+        self.new_patients = {}
+
     def generate_procedures_frequencies(self):
         # (1 - 1 / patients_number): probability of a patients being visited
         # / 3: we assume uniform for different types of visits
@@ -139,6 +142,8 @@ class OADInstanceGenerator():
         for batch in range(1, batches + 1):
             first_batch_day = init_day + (step * (batch - 1) + 1)
 
+            self.new_patients[batch] = []
+
             for address in calendar.keys():
                 arrival_departure_events = []
                 duration = 0
@@ -153,6 +158,7 @@ class OADInstanceGenerator():
                 # take in charge: need to add new patient (new id)
                 if len(arrival_departure_events) == 1 and Procedures.PRESAINCARICO.value in arrival_departure_events:
                     self.patient += 1
+                    self.new_patients[batch].append(self.patient)
 
                     self.input["take_in_charge"][self.patient] = day - init_day
                     self.input["duration"][self.patient] = duration + 2  # +2: add arrival and dismission
@@ -162,14 +168,16 @@ class OADInstanceGenerator():
                     self.activity[self.patient] = 1 # set active
                     self.address_patient_id_mapping[address] = self.patient
                     
+                # dismission mark as last lap
                 if len(arrival_departure_events) == 1 and Procedures.DIMISSIONE.value in arrival_departure_events:
-                    # mark as last lap
                     self.activity[self.address_patient_id_mapping[address]] = 0
 
+                # dismission followed by arrival: dismiss patient and add new patient (new id)
                 if len(arrival_departure_events) == 2 and arrival_departure_events[0] == Procedures.DIMISSIONE.value and arrival_departure_events[1] == Procedures.PRESAINCARICO.value:
                     self.activity[self.address_patient_id_mapping[address]] = -1
 
                     self.patient += 1
+                    self.new_patients[batch].append(self.patient)
 
                     self.input["take_in_charge"][self.patient] = day - init_day
                     self.input["duration"][self.patient] = duration + 2  # +2: add arrival and dismission
@@ -195,10 +203,37 @@ class OADInstanceGenerator():
 
             self.input["average_distances"] = self.compute_average_distances(self.input["addresses"])
 
-            post_init_batches[batch] = copy.deepcopy(self.input)
+            post_init_batches[batch] = self.filter_new_arrivals(copy.deepcopy(self.input), batch)
 
         return post_init_batches
     
+    # in order to only have new arrivals as per Semih's request. Not efficient, but avoids further complications...
+    def filter_new_arrivals(self, input, batch_number):
+        filtered_input = {}
+
+        filtered_input["take_in_charge"] = {}
+        filtered_input["duration"] = {}
+        filtered_input["dismission"] = {}
+        filtered_input["addresses"] = {}
+        filtered_input["treatments_per_week"] = {}
+        filtered_input["ids"] = {}
+        filtered_input["procedures"] = {}
+        filtered_input["daily_treatments_duration"] = {}
+        filtered_input["average_distances"] = {}
+
+        for patient in self.new_patients[batch_number]:
+            filtered_input["take_in_charge"][patient] = input["take_in_charge"][patient]
+            filtered_input["duration"][patient] = input["duration"][patient]
+            filtered_input["dismission"][patient] = input["dismission"][patient]
+            filtered_input["addresses"][patient] = input["addresses"][patient]
+            filtered_input["treatments_per_week"][patient] = input["treatments_per_week"][patient]
+            filtered_input["ids"][patient] = input["ids"][patient]
+            filtered_input["procedures"][patient] = input["procedures"][patient]
+            filtered_input["daily_treatments_duration"][patient] = input["daily_treatments_duration"][patient]
+            filtered_input["average_distances"][patient] = input["average_distances"][patient]
+
+        return filtered_input
+
     def delete_input_entries(self, patient):
         self.input["ids"].pop(patient, None)
         self.input["take_in_charge"].pop(patient, None)
@@ -270,17 +305,19 @@ class OADInstanceGenerator():
 
         teams_number_data_frame = pd.DataFrame(data={"Teams": [len(teams_ids)]})
 
-        sorted_patients_skills = list(reversed(patients_data_frame["Skill"].tolist()))
+        # are sorted in ascending order
+        patients_skills = list(patients_data_frame["Skill"].tolist())
+
+        print(patients_skills)
+
         skill_match = []
         for skill in range(1, total_skills):
-            try:
-                skill_match.append(len(sorted_patients_skills) - sorted_patients_skills.index(skill))
-            except:
-                skill_match.append(-1)
-
-        days_dataframe = pd.DataFrame(data={"Days": [days]})
+            # find index of first element greater than skill
+            skill_match.append(next((x[0] for x in enumerate(patients_skills) if x[1] > skill), len(patients_ids)))
 
         skill_match_data_frame = pd.DataFrame(data={"Skill_match": skill_match})
+
+        days_dataframe = pd.DataFrame(data={"Days": [days]})
 
         os.makedirs("input", exist_ok=True)
         with pd.ExcelWriter(path="input/" + file_name + ".xlsx", mode="w", engine="openpyxl") as writer:
