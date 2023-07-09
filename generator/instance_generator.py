@@ -127,7 +127,8 @@ class OADInstanceGenerator():
                       "average_distances": average_distances,
                       "skills": skills_matrix,
                       "patients": self.patient,
-                      "teams": len(skills_matrix[1])
+                      "teams": len(skills_matrix[1]),
+                      "previous_batch_dismissed": {} # contains patients dismissed at the end of previous batch. Needed to update the capacities.
                      }
         
         return self.input
@@ -143,6 +144,7 @@ class OADInstanceGenerator():
             first_batch_day = init_day + (step * (batch - 1) + 1)
 
             self.new_patients[batch] = []
+            self.input["previous_batch_dismissed"][batch] = []
 
             for address in calendar.keys():
                 arrival_departure_events = []
@@ -190,9 +192,11 @@ class OADInstanceGenerator():
             for patient in copy.deepcopy(self.activity):
                 if self.activity[patient] == -1:
                     self.delete_input_entries(patient)
-                if self.activity[patient] == 0:
+                    self.input["previous_batch_dismissed"][batch].append(patient)
+                    del self.activity[patient]
+                elif self.activity[patient] == 0:
                     self.activity[patient] = -1
-                if self.activity[patient] == 1:
+                else: # self.activity[patient] == 1
                     self.input["treatments_per_week"][patient] = random.randint(low=1, high=6)
 
                     self.input["ids"][patient] = patient
@@ -207,7 +211,7 @@ class OADInstanceGenerator():
 
         return post_init_batches
     
-    # in order to only have new arrivals as per Semih's request. Not efficient, but avoids further complications...
+    # in order to only have new arrivals as per Semih's request. Not efficient nor elegant, but avoids further complications...
     def filter_new_arrivals(self, input, batch_number):
         filtered_input = {}
 
@@ -231,6 +235,8 @@ class OADInstanceGenerator():
             filtered_input["procedures"][patient] = input["procedures"][patient]
             filtered_input["daily_treatments_duration"][patient] = input["daily_treatments_duration"][patient]
             filtered_input["average_distances"][patient] = input["average_distances"][patient]
+
+        filtered_input["previous_batch_dismissed"] = {batch_number: input["previous_batch_dismissed"][batch_number]}
 
         return filtered_input
 
@@ -298,8 +304,6 @@ class OADInstanceGenerator():
         total_skills = len(set(teams_skill.values()))
         patterns = self.generate_patterns(total_skills=total_skills)
         patterns_data_frame = pd.DataFrame(data={day: [patterns[pattern][day]for pattern in range(0, len(patterns))]  for day in range(0, days)})
-        print(patterns)
-        print(patterns_data_frame)
         teams_data_frame = pd.DataFrame(data=teams_data_dict)
         teams_data_frame.sort_values(by="Team_skill", ascending=True, inplace=True)
 
@@ -308,12 +312,10 @@ class OADInstanceGenerator():
         # are sorted in ascending order
         patients_skills = list(patients_data_frame["Skill"].tolist())
 
-        print(patients_skills)
-
         skill_match = []
         for skill in range(1, total_skills):
             # find index of first element greater than skill
-            skill_match.append(next((x[0] for x in enumerate(patients_skills) if x[1] > skill), len(patients_ids)))
+            skill_match.append(next((x[0] + 1 for x in enumerate(patients_skills) if x[1] > skill), len(patients_ids)))
 
         skill_match_data_frame = pd.DataFrame(data={"Skill_match": skill_match})
 
@@ -332,6 +334,9 @@ class OADInstanceGenerator():
             patients_data_frame.to_excel(excel_writer=writer, index=False,  columns=["Service_time"], sheet_name="service", header=False)
             skill_match_data_frame.to_excel(excel_writer=writer, index=False,  columns=["Skill_match"], sheet_name="SkillMatch", header=False)
             teams_data_frame.to_excel(excel_writer=writer, index=False,  columns=["Team_skill"], sheet_name="TeamsSkills", header=False)
+            if k > 1:
+                dismissed_patients_data_frame = pd.DataFrame(data={"Previous_batch_dismissed": input["previous_batch_dismissed"][k - 1]})
+                dismissed_patients_data_frame.to_excel(excel_writer=writer, index=False, columns=["Previous_batch_dismissed"], sheet_name="previous_dismissed", header=False)
 
     def build_teams_procedure_sets(self):
         teams_procedure_sets = {}
