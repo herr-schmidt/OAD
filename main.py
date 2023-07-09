@@ -3,6 +3,8 @@ import pprint
 import plotly.express as px
 from plotly import graph_objects as go
 from generator.data import Procedures
+from initialization import perform_initialization
+from pandas import read_excel
 
 if __name__ == "__main__":
     generator = OADInstanceGenerator(seed=58492)
@@ -53,13 +55,22 @@ if __name__ == "__main__":
         len=400
     ))
 
-    fig.show()
+    # fig.show()
 
-    input = generator.generate_initialization_input(event_calendar, init_day=10)
+    init_day = 10
+
+    input = generator.generate_initialization_input(event_calendar, init_day=init_day)
     generator.export_to_xlsx(input, 1)
 
-    post_init = generator.generate_post_init_input(event_calendar, init_day=10)
-    generator.export_to_xlsx(post_init[1], 2)
-    generator.export_to_xlsx(post_init[2], 3)
-    generator.export_to_xlsx(post_init[3], 4)
-    generator.export_to_xlsx(post_init[4], 5)
+    perform_initialization("input/INS1.xlsx")
+
+    post_init = generator.generate_post_init_input(event_calendar, init_day=init_day)
+    B = 8 # number of batches to consider after initialization
+    for post_init_batch in range(1, B + 1):
+
+        # previous_batch_solution = read_excel("output/SLN1.xlsx", sheet_name=None, header=None)
+        # TODO: update capacities according to the patients who left in previous batch
+
+        generator.export_to_xlsx(post_init[post_init_batch], post_init_batch + 1)
+
+        # call post-optimization script on newly generated input INS_B
