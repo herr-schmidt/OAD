@@ -127,8 +127,9 @@ class OADInstanceGenerator():
                       "average_distances": average_distances,
                       "skills": skills_matrix,
                       "patients": self.patient,
-                      "teams": len(skills_matrix[1]),
-                      "previous_batch_dismissed": {} # contains patients dismissed at the end of previous batch. Needed to update the capacities.
+                      "teams": len(teams),
+                      "previous_batch_dismissed": {0: {}}, # contains patients dismissed at the end of previous batch. Needed to update the capacities.
+                      "capacity": {team: 1500 for team in range(0, len(teams))}
                      }
         
         return self.input
@@ -272,12 +273,10 @@ class OADInstanceGenerator():
         patients_data_frame.sort_values(by=["Skill", "Treatments_per_week"], ascending=[True, False], inplace=True)
 
         teams_ids = [id for id in range(1, len(teams) + 1)]
-        weekly_availability = 1500
-        teams_availability = [weekly_availability for _ in range(1, len(teams) + 1)]
 
         teams_data_dict = {"Team_ID": teams_ids,
                            "Team_skill": teams_skill.values(),
-                           "Weekly_capacity": teams_availability}
+                           "Weekly_capacity": input["capacity"].values()}
 
         total_skills = len(set(teams_skill.values()))
         patterns = self.generate_patterns(total_skills=total_skills)
@@ -299,6 +298,8 @@ class OADInstanceGenerator():
 
         days_dataframe = pd.DataFrame(data={"Days": [days]})
 
+        dismissed_patients_data_frame = pd.DataFrame(data={"Previous_batch_dismissed": input["previous_batch_dismissed"][k - 1]})
+
         os.makedirs("input", exist_ok=True)
         with pd.ExcelWriter(path="input/" + file_name + ".xlsx", mode="w", engine="openpyxl") as writer:
             patients_data_frame.to_excel(excel_writer=writer, index=False,  columns=["ID"], sheet_name="Ids", header=False)
@@ -312,9 +313,10 @@ class OADInstanceGenerator():
             patients_data_frame.to_excel(excel_writer=writer, index=False,  columns=["Service_time"], sheet_name="service", header=False)
             skill_match_data_frame.to_excel(excel_writer=writer, index=False,  columns=["Skill_match"], sheet_name="SkillMatch", header=False)
             teams_data_frame.to_excel(excel_writer=writer, index=False,  columns=["Team_skill"], sheet_name="TeamsSkills", header=False)
-            if k > 1:
-                dismissed_patients_data_frame = pd.DataFrame(data={"Previous_batch_dismissed": input["previous_batch_dismissed"][k - 1]})
-                dismissed_patients_data_frame.to_excel(excel_writer=writer, index=False, columns=["Previous_batch_dismissed"], sheet_name="previous_dismissed", header=False)
+            dismissed_patients_data_frame.to_excel(excel_writer=writer, index=False, columns=["Previous_batch_dismissed"], sheet_name="previous_dismissed", header=False)
+
+        # again, it is obscene to return it, but so it goes...
+        return patients_data_frame
 
     def build_teams_procedure_sets(self):
         teams_procedure_sets = {}

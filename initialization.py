@@ -10,7 +10,7 @@ import cplex
 import openpyxl
 
 
-def perform_initialization(initialization_input_filepath):
+def perform_initialization(initialization_input_filepath, initialization_output_filepath):
 
     wb = openpyxl.load_workbook(initialization_input_filepath)
     sheet = wb['travel']
@@ -437,7 +437,7 @@ def perform_initialization(initialization_input_filepath):
             else:
                 ws.write(k, 1, ptlst[k][j])
 
-    wb.save('output/SLN1.xlsx')
+    wb.save(initialization_output_filepath)
 
     ws = wb.add_sheet('Operator list')
 
@@ -448,7 +448,7 @@ def perform_initialization(initialization_input_filepath):
     ws = wb.add_sheet('Number of patients')
     for x in range(1, Q):
         ws.write(x-1, 0, len(_list[("n"+str(x))]))
-    wb.save('output/SLN1.xlsx')
+    wb.save(initialization_output_filepath)
 
     ws = wb.add_sheet('Work load')
 
@@ -456,4 +456,4 @@ def perform_initialization(initialization_input_filepath):
         for y in range(0, size(Wop, 1)):
             ws.write(x, y, Wop[x][y])
 
-    wb.save('output/SLN1.xlsx')
+    wb.save(initialization_output_filepath)
