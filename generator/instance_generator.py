@@ -206,39 +206,17 @@ class OADInstanceGenerator():
                     self.input["daily_treatments_duration"][patient] = sum(procedure_time for procedure_time in patient_procedures.values())
 
             self.input["average_distances"] = self.compute_average_distances(self.input["addresses"])
-
-            post_init_batches[batch] = self.filter_new_arrivals(copy.deepcopy(self.input), batch)
+            self.filter_new_arrivals(batch)
+            post_init_batches[batch] = copy.deepcopy(self.input)
 
         return post_init_batches
     
     # in order to only have new arrivals as per Semih's request. Not efficient nor elegant, but avoids further complications...
-    def filter_new_arrivals(self, input, batch_number):
-        filtered_input = {}
+    def filter_new_arrivals(self, batch_number):
+        for patient in copy.deepcopy(self.input["ids"]):
+            if patient not in self.new_patients[batch_number]:
+                self.delete_input_entries(patient)
 
-        filtered_input["take_in_charge"] = {}
-        filtered_input["duration"] = {}
-        filtered_input["dismission"] = {}
-        filtered_input["addresses"] = {}
-        filtered_input["treatments_per_week"] = {}
-        filtered_input["ids"] = {}
-        filtered_input["procedures"] = {}
-        filtered_input["daily_treatments_duration"] = {}
-        filtered_input["average_distances"] = {}
-
-        for patient in self.new_patients[batch_number]:
-            filtered_input["take_in_charge"][patient] = input["take_in_charge"][patient]
-            filtered_input["duration"][patient] = input["duration"][patient]
-            filtered_input["dismission"][patient] = input["dismission"][patient]
-            filtered_input["addresses"][patient] = input["addresses"][patient]
-            filtered_input["treatments_per_week"][patient] = input["treatments_per_week"][patient]
-            filtered_input["ids"][patient] = input["ids"][patient]
-            filtered_input["procedures"][patient] = input["procedures"][patient]
-            filtered_input["daily_treatments_duration"][patient] = input["daily_treatments_duration"][patient]
-            filtered_input["average_distances"][patient] = input["average_distances"][patient]
-
-        filtered_input["previous_batch_dismissed"] = {batch_number: input["previous_batch_dismissed"][batch_number]}
-
-        return filtered_input
 
     def delete_input_entries(self, patient):
         self.input["ids"].pop(patient, None)
