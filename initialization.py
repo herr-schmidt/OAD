@@ -216,20 +216,27 @@ def perform_initialization(initialization_input_filepath, initialization_output_
             model.variables.add(names=["X"+str(j)+","+str(t)])
             model.variables.set_types("X"+str(j)+","+str(t), "B")
 
-    for i in range(skl[0]+1, S2):
-        for t in range(1, sk2.index(2)+1):
+    # to be able to use rindex and avoid reversing
+    sk2_as_string = "".join(map(str, sk2))
+
+    print(sk2_as_string)
+    print(skl)
+    print(sk2_as_string.rindex("1"))
+
+    for i in range(skl[0], S2):
+        for t in range(1, sk2_as_string.rindex("1")+2):
             model.variables.advanced.tighten_upper_bounds("X"+str(i)+","+str(t), 0)
 
-    for i in range(skl[1]+1, S2):
-        for t in range(sk2.index(2)+1, sk2.index(3)+1):
+    for i in range(skl[1], S2):
+        for t in range(1, sk2_as_string.rindex("2")+2):
             model.variables.advanced.tighten_upper_bounds("X"+str(i)+","+str(t), 0)
 
-    for i in range(skl[2]+1, S2):
-        for t in range(sk2.index(3)+1, sk2.index(4)+1):
+    for i in range(skl[2], S2):
+        for t in range(1, sk2_as_string.rindex("3")+2):
             model.variables.advanced.tighten_upper_bounds("X"+str(i)+","+str(t), 0)
 
-    for i in range(skl[3]+1, S2):
-        for t in range(sk2.index(4)+1, sk2.index(5)+1):
+    for i in range(skl[3], S2):
+        for t in range(1, sk2_as_string.rindex("4")+2):
             model.variables.advanced.tighten_upper_bounds("X"+str(i)+","+str(t), 0)
 
     for t in range(1, Q):
@@ -378,16 +385,6 @@ def perform_initialization(initialization_input_filepath, initialization_output_
     # print(j,p)
     # print(model.solution.get_values("Z"+str(j)+","+str(p)))
 
-    c = []
-    ##the following is used to write the patietn list of nurses####
-    for j in range(1, Q):
-        for i in range(1, S):
-            if model.solution.get_values("X"+str(i)+","+str(j)) > 0.1:
-                c.append(i)
-                _list[("n"+str(j))] = (c)
-                i = 1+1
-        c = []
-
     ptlst = []
     for j in range(1, S2):
         for p in range(1, P):
@@ -402,8 +399,7 @@ def perform_initialization(initialization_input_filepath, initialization_output_
         for i in range(1, S):
             if model.solution.get_values("X"+str(i)+","+str(j)) > 0.1:
                 c.append(i)
-                _list[("n"+str(j))] = (c)
-                i = 1+1
+        _list[("n"+str(j))] = (c)
         c = []
 
     id = {}
