@@ -1,18 +1,13 @@
-# -*- coding: utf-8 -*-
-
 from numpy import *
 from decimal import *
-import random
-import math
 import openpyxl
-import os
 import cplex
 import openpyxl
 
 
-def perform_initialization(initialization_input_filepath, initialization_output_filepath):
+def optimize(optimization_input_filepath, optimization_output_filepath):
 
-    wb = openpyxl.load_workbook(initialization_input_filepath)
+    wb = openpyxl.load_workbook(optimization_input_filepath)
     sheet = wb['travel']
     x = []
     for row in sheet.iter_rows():
@@ -29,7 +24,7 @@ def perform_initialization(initialization_input_filepath, initialization_output_
     S = size(ttt)
     S2 = S
 
-    wb = openpyxl.load_workbook(initialization_input_filepath)
+    wb = openpyxl.load_workbook(optimization_input_filepath)
     sheet = wb['visit']
     x = []
     for row in sheet.iter_rows():
@@ -41,7 +36,7 @@ def perform_initialization(initialization_input_filepath, initialization_output_
     r1.append([0]+y)
 
     # Service Time
-    wb = openpyxl.load_workbook(initialization_input_filepath)
+    wb = openpyxl.load_workbook(optimization_input_filepath)
     sheet = wb.get_sheet_by_name(u'service')
     x = []
     for row in sheet.iter_rows():
@@ -56,7 +51,7 @@ def perform_initialization(initialization_input_filepath, initialization_output_
     st = [0]+st
 
     # Capacity
-    wb = openpyxl.load_workbook(initialization_input_filepath)
+    wb = openpyxl.load_workbook(optimization_input_filepath)
     sheet = wb.get_sheet_by_name(u'capacity')
     x = []
     for row in sheet.iter_rows():
@@ -72,7 +67,7 @@ def perform_initialization(initialization_input_filepath, initialization_output_
     NO = len(y)
 
     # Skill
-    wb = openpyxl.load_workbook(initialization_input_filepath)
+    wb = openpyxl.load_workbook(optimization_input_filepath)
     sheet = wb.get_sheet_by_name(u'SkillMatch')
     x = []
     for row in sheet.iter_rows():
@@ -88,7 +83,7 @@ def perform_initialization(initialization_input_filepath, initialization_output_
     MID = len(skl)
 
     # TeamSkill
-    wb = openpyxl.load_workbook(initialization_input_filepath)
+    wb = openpyxl.load_workbook(optimization_input_filepath)
     sheet = wb.get_sheet_by_name(u'TeamsSkills')
     x = []
     for row in sheet.iter_rows():
@@ -105,7 +100,7 @@ def perform_initialization(initialization_input_filepath, initialization_output_
 
     # Patterns
 
-    wb = openpyxl.load_workbook(initialization_input_filepath)
+    wb = openpyxl.load_workbook(optimization_input_filepath)
     sheet = wb.get_sheet_by_name(u'pattern')
 
     def iter_rows(sheet):
@@ -127,7 +122,7 @@ def perform_initialization(initialization_input_filepath, initialization_output_
     Q = NO+1
 
     # DAys
-    wb = openpyxl.load_workbook(initialization_input_filepath)
+    wb = openpyxl.load_workbook(optimization_input_filepath)
     sheet = wb.get_sheet_by_name(u'Days')
     x = []
     for row in sheet.iter_rows():
@@ -218,10 +213,6 @@ def perform_initialization(initialization_input_filepath, initialization_output_
 
     # to be able to use rindex and avoid reversing
     sk2_as_string = "".join(map(str, sk2))
-
-    print(sk2_as_string)
-    print(skl)
-    print(sk2_as_string.rindex("1"))
 
     for i in range(skl[0], S2):
         for t in range(1, sk2_as_string.rindex("1")+2):
@@ -433,7 +424,7 @@ def perform_initialization(initialization_input_filepath, initialization_output_
             else:
                 ws.write(k, 1, ptlst[k][j])
 
-    wb.save(initialization_output_filepath)
+    wb.save(optimization_output_filepath)
 
     ws = wb.add_sheet('Operator list')
 
@@ -444,7 +435,7 @@ def perform_initialization(initialization_input_filepath, initialization_output_
     ws = wb.add_sheet('Number of patients')
     for x in range(1, Q):
         ws.write(x-1, 0, len(_list[("n"+str(x))]))
-    wb.save(initialization_output_filepath)
+    wb.save(optimization_output_filepath)
 
     ws = wb.add_sheet('Work load')
 
@@ -452,4 +443,4 @@ def perform_initialization(initialization_input_filepath, initialization_output_
         for y in range(0, size(Wop, 1)):
             ws.write(x, y, Wop[x][y])
 
-    wb.save(initialization_output_filepath)
+    wb.save(optimization_output_filepath)

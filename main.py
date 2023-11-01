@@ -3,7 +3,7 @@ import pprint
 import plotly.express as px
 from plotly import graph_objects as go
 from generator.data import Procedures
-from initialization import perform_initialization
+from optimization import optimize
 from pandas import read_excel
 from math import isnan
 
@@ -63,9 +63,7 @@ if __name__ == "__main__":
     input = generator.generate_initialization_input(event_calendar, init_day=init_day)
     patients_dataframe = generator.export_to_xlsx(input, 1)
 
-    print(patients_dataframe)
-
-    perform_initialization("input/INS1.xlsx", "output/SLN1.xlsx")
+    optimize("input/INS1.xlsx", "output/SLN1.xlsx")
 
     post_init = generator.generate_post_init_input(event_calendar, init_day=init_day)
     B = 5 # number of batches to consider after initialization
@@ -102,8 +100,5 @@ if __name__ == "__main__":
 
         patients_dataframe = generator.export_to_xlsx(post_init[post_init_batch], post_init_batch + 1)
 
-        print(patients_dataframe)
-
         # call post-optimization script on newly generated input INS_B
-
-        perform_initialization("input/INS" + str(post_init_batch + 1) + ".xlsx", "output/SLN" + str(post_init_batch + 1) + ".xlsx")
+        optimize("input/INS" + str(post_init_batch + 1) + ".xlsx", "output/SLN" + str(post_init_batch + 1) + ".xlsx")
