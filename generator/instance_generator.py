@@ -128,7 +128,7 @@ class OADInstanceGenerator():
                       "skills": skills_matrix,
                       "patients": self.patient,
                       "teams": len(teams),
-                      "previous_batch_dismissed": {0: {}}, # contains patients dismissed at the end of previous batch. Needed to update the capacities.
+                      "previous_batch_dismissed": {0: []}, # contains patients dismissed at the end of previous batch. Needed to update the capacities.
                       "capacity": {team: 1500 for team in range(0, len(teams))}
                      }
         
@@ -282,7 +282,7 @@ class OADInstanceGenerator():
         patterns = self.generate_patterns(total_skills=total_skills)
         patterns_data_frame = pd.DataFrame(data={day: [patterns[pattern][day]for pattern in range(0, len(patterns))]  for day in range(0, days)})
         teams_data_frame = pd.DataFrame(data=teams_data_dict)
-        teams_data_frame.sort_values(by="Team_skill", ascending=True, inplace=True)
+        teams_data_frame.sort_values(by=["Team_skill", "Team_ID"], ascending=[True, True], inplace=True)
 
         teams_number_data_frame = pd.DataFrame(data={"Teams": [len(teams_ids)]})
 
@@ -292,7 +292,7 @@ class OADInstanceGenerator():
         skill_match = []
         for skill in range(1, total_skills):
             # find index of first element greater than skill
-            skill_match.append(next((x[0] + 1 for x in enumerate(patients_skills) if x[1] > skill), len(patients_ids)))
+            skill_match.append(next((x[0] + 1 for x in enumerate(patients_skills) if x[1] > skill), len(patients_ids) + 1))
 
         skill_match_data_frame = pd.DataFrame(data={"Skill_match": skill_match})
 

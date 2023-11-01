@@ -63,31 +63,36 @@ if __name__ == "__main__":
     input = generator.generate_initialization_input(event_calendar, init_day=init_day)
     patients_dataframe = generator.export_to_xlsx(input, 1)
 
+    print(patients_dataframe)
+
     perform_initialization("input/INS1.xlsx", "output/SLN1.xlsx")
 
     post_init = generator.generate_post_init_input(event_calendar, init_day=init_day)
-    B = 1 # number of batches to consider after initialization
+    B = 5 # number of batches to consider after initialization
 
-    team_patients_map = {team: [] for team in range(0, input["teams"])}
+    team_patients_map = {team: [] for team in post_init[1]["capacity"].keys()}
     patients_service_times = {}
+
+    capacity = {team: 1500 for team in post_init[1]["capacity"].keys()}
 
     def update_capacities(previous_batch_solution, batch_to_optimize):
         assigned_workloads = previous_batch_solution["Work load"]
         for team in range(0, batch_to_optimize["teams"]):
-            available_workload = 1500 - sum(assigned_workloads.iloc[team, :].values.flatten().tolist())
+            available_workload = capacity[team] - sum(assigned_workloads.iloc[team, :].values.flatten().tolist())
             for patient in batch_to_optimize["previous_batch_dismissed"]:
                 if patient in team_patients_map[team]:
                     available_workload += patients_service_times[patient]
-            batch_to_optimize["capacity"][team] = available_workload
+            capacity[team] = available_workload
+            batch_to_optimize["capacity"][team] = capacity[team]
 
     def update_maps(batch_solution):
-        for team in team_patients_map:
-            assigned_patients = list(filter(lambda x: not isnan(x), batch_solution["Operator list"])) # solver ids, they represent line number in sorted input dataframe
-            assigned_patients = list(map(lambda x: int(x), assigned_patients)) # pandas loaded them as fp numbers
-            for solution_row in assigned_patients:
-                patient_id = int(patients_dataframe.iloc[solution_row]["ID"])
+        for team in range(0, len(batch_solution["Operator list"])):
+            assigned_patients = list(filter(lambda x: not isnan(x), batch_solution["Operator list"].iloc[team])) # solver ids, they represent line number in sorted input dataframe
+            assigned_patients = list(map(int, assigned_patients)) # pandas loaded them as fp numbers
+            for solver_patient_ID in assigned_patients:
+                patient_id = int(patients_dataframe.iloc[solver_patient_ID - 1]["ID"])
                 team_patients_map[team].append(patient_id)
-                patients_service_times[patient_id] = patients_dataframe.iloc[solution_row]["Treatments_per_week"] * patients_dataframe.iloc[solution_row]["Service_time"]
+                patients_service_times[patient_id] = patients_dataframe.iloc[solver_patient_ID - 1]["Treatments_per_week"] * patients_dataframe.iloc[solver_patient_ID - 1]["Service_time"]
 
     for post_init_batch in range(1, B + 1):
 
@@ -97,4 +102,8 @@ if __name__ == "__main__":
 
         patients_dataframe = generator.export_to_xlsx(post_init[post_init_batch], post_init_batch + 1)
 
+        print(patients_dataframe)
+
         # call post-optimization script on newly generated input INS_B
+
+        perform_initialization("input/INS" + str(post_init_batch + 1) + ".xlsx", "output/SLN" + str(post_init_batch + 1) + ".xlsx")

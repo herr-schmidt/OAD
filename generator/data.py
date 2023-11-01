@@ -1263,22 +1263,22 @@ skills_matrix = {Procedures.VISITASTRUTTURATO.value: {1: 1, 2: 1, 3: 1, 4: 1, 5:
                  Procedures.SUPPORTOPSICOLOGICO.value: {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1, 8: 0, 9: 1, 10: 1}
                  }
 
-teams = {1: frozenset([1]),
-         2: frozenset([2, 8]),
-         3: frozenset([3]),
-         4: frozenset([4, 5]),
-         5: frozenset([6]),
-         6: frozenset([7]),
-         7: frozenset([9]),
-         8: frozenset([10])
+teams = {1: frozenset([10]),
+         2: frozenset([9]),
+         3: frozenset([7]),
+         4: frozenset([6]),
+         5: frozenset([4, 5]),
+         6: frozenset([3]),
+         7: frozenset([2, 8]),
+         8: frozenset([1])
          }
 
-teams_skill = {1: 5,
-               2: 4,
-               3: 3,
-               4: 3,
-               5: 2,
-               6: 2,
-               7: 1,
-               8: 1
+teams_skill = {1: 1,
+               2: 1,
+               3: 2,
+               4: 2,
+               5: 3,
+               6: 3,
+               7: 4,
+               8: 5
                }
