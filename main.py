@@ -9,7 +9,10 @@ from math import isnan
 
 if __name__ == "__main__":
     generator = OADInstanceGenerator(seed=58492)
+
+    # days in the calendar
     timespan = 100
+
     event_calendar = generator.generate_events_calendar(timespan=timespan,
                                                   treatment_span_range=(5, 30))
 
@@ -56,23 +59,36 @@ if __name__ == "__main__":
         len=400
     ))
 
+    # uncomment if you want to display the original calendar
     # fig.show()
 
+    # initialization day: we forget anything that happens before that day
     init_day = 10
 
+    # First optimization
     input = generator.generate_initialization_input(event_calendar, init_day=init_day)
+    # save it to xlsx since Semih's script reads it
     patients_dataframe = generator.export_to_xlsx(input, 1)
 
     optimize("input/INS1.xlsx", "output/SLN1.xlsx")
 
-    post_init = generator.generate_post_init_input(event_calendar, init_day=init_day)
-    B = 5 # number of batches to consider after initialization
+    # build inputs after the first one ("online" part)
+    # notice: post_init is a dictionary of inputs indexed by a batch index
+    # the step parameter represents the number of days in each batch, and defaults to 5
+    # meaning that we consider the week from monday to friday (recall that in the calendar we do
+    # not have saturdays nor sundays)
+    post_init = generator.generate_post_init_input(event_calendar,step=5, init_day=init_day)
+    
+    # number of batches to consider after initialization
+    # this should be selected to be always lower then the size of the post_init dictionary
+    B = 5
 
     team_patients_map = {team: [] for team in post_init[1]["capacity"].keys()}
     patients_service_times = {}
 
     capacity = {team: 1500 for team in post_init[1]["capacity"].keys()}
 
+    # need to keep track of previously assigned patients: teams will have less time per week
     def update_capacities(previous_batch_solution, batch_to_optimize):
         assigned_workloads = previous_batch_solution["Work load"]
         for team in range(0, batch_to_optimize["teams"]):
@@ -83,6 +99,7 @@ if __name__ == "__main__":
             capacity[team] = available_workload
             batch_to_optimize["capacity"][team] = capacity[team]
 
+    # keep track of patients assigned to each team
     def update_maps(batch_solution):
         for team in range(0, len(batch_solution["Operator list"])):
             assigned_patients = list(filter(lambda x: not isnan(x), batch_solution["Operator list"].iloc[team])) # solver ids, they represent line number in sorted input dataframe
